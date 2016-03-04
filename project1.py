@@ -46,12 +46,42 @@ class Connection:
         curs = self.connection.cursor()
         rows = curs.fetchall() #list??
         curs.close()
+        return rows
 
     def createInsertion(self, table, data):
         pass
 
-    def createQuery(self, columns, tables, conditions):
+    def createDeletion(self, table, data):
         pass
+
+    def createQuery(self, columns, tables, conditions):
+        '''
+        Args:
+        columns(str)
+        tables(str)
+        conditions(str)
+
+        return:
+        (str): sql query statement
+        '''
+        return 'SELECT'+columns+'FROM'+tables+'WHERE'+conditions
+
+    def ifExist(self, table, keyAttr, value):
+        '''
+        check if the tuple already existed in the table
+
+        Args:
+        table(str)
+        keyAttr(str):the name of the primary key attribute
+        value(str): the value of query key attribute
+        
+        Return: Bool
+        '''
+        query = createQuery(keyAttr, table, keyAttr+'='+value)
+        if self.fetchResult(query)==[]:
+            return False
+        else:
+            return True
 
     def checkUnique(self, table, data):
         pass
@@ -63,6 +93,7 @@ class application:
     def selectMenu(self):
         selection = 0
         while not selection:
+            print('#'*80)
             print('Please select from the following programs: ')
             print('1. New Vehicle Registration')
             print('2. Auto Transaction')
@@ -77,9 +108,9 @@ class application:
                 '3': 3,
                 '4': 4,
                 '5': 5,
-                'Q': 'q'
+                'Q': 'Q'
             }.get(inputStr,0)
-            print('Your choice is '+inputStr)
+            #print('Your choice is '+inputStr)
             if selection==0:
                 print('Your input is not valid, please try again')
         return selection
@@ -91,12 +122,11 @@ class application:
         sys.exit()
 
     def main(self):
-        print('#'*30)
         selection = 0
         while not selection:
             selection = self.selectMenu()
             if selection==1:
-                selection = self.newVehicleRegistration() #if finished, return 0 
+                selection = self.newVehicleRegistration() #if finished, return  
             elif selection==2:
                 selection = self.autoTransaction()# if quit, return 'Q'
             elif selection==3:
@@ -105,6 +135,8 @@ class application:
                 selection = self.violationRecord()
             elif selection==5:
                 selection = self.searchEngine()
+            elif selection=='Q':
+                self.end()
         self.end()
         
 
@@ -155,28 +187,28 @@ class application:
         First program.
         '''
         inputVal = input('Please enter the serial number: ').strip()
-        serialNo = checkFormat(inputVal, 'char', 15)
-        if isSerialNoExist(serialNo):
+        serialNo = self.checkFormat(inputVal, 'char', 15)
+        if self.isSerialNoExist(serialNo):
             print('Vehicle already exist.')
             # need re-input?
 
         inputVal = input('Please enter SIN of the owner').strip()
-        sin = checkFormat(inputVal, 'char', 15)
-        if not isSinExist(sin):
+        sin = self.checkFormat(inputVal, 'char', 15)
+        if not self.isSinExist(sin):
             print('Sin NOT VALID.')
-            newPeopleRegistration(sin)
+            #newPeopleRegistration(sin)
 
         inputVal = input('Please enter the maker of the vehicle: ').strip()
-        maker = checkFormat(inputVal, 'char', 20)
+        maker = self.checkFormat(inputVal, 'char', 20)
 
         inputVal = input('Please enter the model of the vehicle: ').strip()
-        model = checkFormat(inputVal, 'char', 20)
+        model = self.checkFormat(inputVal, 'char', 20)
 
         inputVal = input('Please enter the year of production of the vehicle: ').strip()
-        year = checkFormat(inputVal, 'date', 0)
+        year = self.checkFormat(inputVal, 'date', 0)
 
         inputVal = input('Please enter the color of the vehicle: ').strip()
-        color = checkFormat(inputVal, 'char', 10)
+        color = self.checkFormat(inputVal, 'char', 10)
 
         ###################
 
