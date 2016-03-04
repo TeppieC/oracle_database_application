@@ -1,5 +1,5 @@
 '''
-CMPUT291, Project 1
+Project 1
 
 Copyright 2016, Zhaorui CHEN, Nicholas LI, Jiaxuan YUE
 
