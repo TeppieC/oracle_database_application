@@ -15,20 +15,23 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 '''
+import sys
+import cx_Oracle # the package used for accessing Oracle in Python
+import getpass # the package for getting password from user without displaying it
 
 class Connection:
     def __init__(self):
         # FROM Kriti
         # get username
-	user = input("Username [%s]: " % getpass.getuser())
-	if not user:
-    		user=getpass.getuser()
+        user = input("Username [%s]: " % getpass.getuser())
+        if not user:
+            user=getpass.getuser()
 	
-	# get password
-	pw = getpass.getpass()
+        # get password
+        pw = getpass.getpass()
 
 	# The URL we are connnecting to
-	conString=''+user+'/' + pw +'@gwynne.cs.ualberta.ca:1521/CRS'
+        conString=''+user+'/' + pw +'@gwynne.cs.ualberta.ca:1521/CRS'
         self.connection = cx_Oracle.connect(conString)
 
     def disconnect(self):
@@ -58,7 +61,52 @@ class application:
         self.connection =  Connection()
 
     def selectMenu(self):
-        pass
+        selection = 0
+        while not selection:
+            print('Please select from the following programs: ')
+            print('1. New Vehicle Registration')
+            print('2. Auto Transaction')
+            print('3. Driver Licence Registration')
+            print('4. Violation Record')
+            print('5. Search Engine')
+            print('[Q] Quit')
+            inputStr = input('Your choice: ')
+            selection = {
+                '1': 1,
+                '2': 2,
+                '3': 3,
+                '4': 4,
+                '5': 5,
+                'Q': 'q'
+            }.get(inputStr,0)
+            print('Your choice is '+inputStr)
+            if selection==0:
+                print('Your input is not valid, please try again')
+        return selection
+
+    def end(self):
+        print('See you')
+        # close cursor if needed
+        self.connection.disconnect()
+        sys.exit()
+
+    def main(self):
+        print('#'*30)
+        selection = 0
+        while not selection:
+            selection = self.selectMenu()
+            if selection==1:
+                selection = self.newVehicleRegistration() #if finished, return 0 
+            elif selection==2:
+                selection = self.autoTransaction()# if quit, return 'Q'
+            elif selection==3:
+                selection = self.driverLicenceRegistration()
+            elif selection==4:
+                selection = self.violationRecord()
+            elif selection==5:
+                selection = self.searchEngine()
+        self.end()
+        
 
     def checkFormat(self, value, inputType, misc):
         '''
@@ -129,6 +177,11 @@ class application:
 
         inputVal = input('Please enter the color of the vehicle: ').strip()
         color = checkFormat(inputVal, 'char', 10)
+
+        ###################
+
+        if input('Re-select the program?[y/n]')=='y':
+            return 0
         
         
 
@@ -159,4 +212,4 @@ class application:
 
 if __name__ == '__main__':
     app = application()
-    app.selectMenu()
+    app.main()
