@@ -68,7 +68,7 @@ class Connection:
 
     def ifExist(self, table, keyAttr, value):
         '''
-        check if the tuple already existed in the table
+        check if the key is already existed in the table
 
         Args:
         table(str)
@@ -126,9 +126,9 @@ class application:
         while not selection:
             selection = self.selectMenu()
             if selection==1:
-                selection = self.newVehicleRegistration() #if finished, return  
+                selection = self.newVehicleRegistration() # return 0 to re-select
             elif selection==2:
-                selection = self.autoTransaction()# if quit, return 'Q'
+                selection = self.autoTransaction()
             elif selection==3:
                 selection = self.driverLicenceRegistration()
             elif selection==4:
@@ -137,85 +137,156 @@ class application:
                 selection = self.searchEngine()
             elif selection=='Q':
                 self.end()
-        self.end()
+        self.end() #can remove?...
         
 
     def checkFormat(self, value, inputType, misc):
         '''
         helper function to validate the input
+        
+        Args:
+        value(str): the input string
+        inputType(str): the sql type which the input string should be cast into
+        misc(list/int): the list of miscellaneous properties, eg. length of the integer
+
+        Return:
+        the casted input which is in the correct type
         '''
+        value = value.strip()
+        while value='': #check if the input is blank
+            print('Oops, you are not entering anything...')
+            value = input('Please re-input: ').strip()
+
         if inputType=='char': # validate the input for CHAR
             while True:
                 if len(value)>=misc:
-                    print('Too looooooooooong')
+                    print('Input is too long. Input should have %d characters' % misc)
                     value = input('Please re-input: ').strip()
                 else: 
                     return value
         elif inputType=='integer': # validate the input for INTEGER
             while True:
                 if not value.isdigit():
+                    print('Input is not a numeric type')
                     value = input('Please re-input').strip()
                 else:
                     return value
         elif inputType=='number': # validate the input for NUMBER
             while True:
                 # check if is a float
+                # NUMBER(a,b)
+                # misc[0]:a, misc[1]:b
                 try:
                     val = float(value)
                 except ValueError:
-                    print('Not Float')
+                    print('Input is not a numeric type')
                     value = input('Please re-input: ').strip()
                     continue
                     
                 # check if has the correct length
                 if len(value)>misc[0]+1:
-                    print('Too looooooooooong')
+                    print('Input is too long. Input should have %d digits(including decimal)' % misc[0])
                     value = input('Please re-input: ').strip()
                     continue
 
                 # check if has the correct decimal length
                 if not value[-(misc[1]+1)]=='.':
+                    print('Input should have %d decimal digits' % misc[1])
                     value = input('Please re-input: ').strip()
                     continue
                 return value
         elif inputType=='date': #validate the input for DATE
-            pass
-        ####################################################
+            while True: # proper format: DD-MM-YYYY
+                if not len(value)==10:
+                    # if is not in the correct length
+                    print('Your input should follow "DD-MM-YYYY"')
+                    value = input('Please re-input: ').strip()
+                    continue
+                if value[2]!='-' or value[5]!='-':
+                    # if is not using '-' to connect date, month and years
+                    print('Your input should follow "DD-MM-YYYY"')
+                    value = input('Please re-input: ').strip()
+                    continue
+                if not (value[:2].isdigit() and value[3:5].isdigit() and value[6:].isdigit()):
+                    # if DD, MM or YYYY is not expressed in integers
+                    print('Your input should follow "DD-MM-YYYY"')
+                    value = input('Please re-input: ').strip()
+                    continue
+                if int(value[:2])<1 or int(value[3:5])<1 \
+                        or int(value[:2])>31 or int(value[3:5])>12:
+                    # if DD or MM is out of range
+                    print('Date or month is out of range')
+                    value = input('Please re-input: ').strip()
+                    continue
+                else:
+                    # convert 'MM' to characters
+                    month = {
+                        '01': 'JUN',
+                        '02': 'FEB',
+                        '03': 'MAR',
+                        '04': 'APR',
+                        '05': 'MAY',
+                        '06': 'JUN',
+                        '07': 'JUL',
+                        '08': 'AUG',
+                        '09': 'SEP',
+                        '10': 'OCT',
+                        '11': 'NOV',
+                        '12': 'DEC',
+                        }.get(value[3:5])
+                    return ('%s-%s-%s'%(value[:2],month, value[6:])) # may cause bug...
+
+    def checkReference(self, table, keyAttr, value, inputType, misc):
+        '''
+        helper function to validate input and check if the reference key is valid
+        '''
+        while not self.connection.ifExist(table, keyAttr, value):
+            print('The key "%s" is not exist in the reference table "%s"'%(value, table))
+            value = input('Please re-input: ').strip()
+        return value
 
     def newVehicleRegistration(self):
         '''
         First program.
         '''
-        inputVal = input('Please enter the serial number: ').strip()
+        inputVal = input('Please enter the serial number: ')
         serialNo = self.checkFormat(inputVal, 'char', 15)
-        if self.isSerialNoExist(serialNo):
+        while self.ifSerialNumExist(serialNo):
             print('Vehicle already exist.')
-            # need re-input?
+            inputVal = input('Please enter another serial number: ')
+            serialNo = self.checkFormat(inputVal, 'char', 15)
 
-        inputVal = input('Please enter SIN of the owner').strip()
+        inputVal = input('Please enter SIN of the owner')
         sin = self.checkFormat(inputVal, 'char', 15)
-        if not self.isSinExist(sin):
+        if not self.ifSinExist(sin):
             print('Sin NOT VALID.')
+            while
             #newPeopleRegistration(sin)
 
-        inputVal = input('Please enter the maker of the vehicle: ').strip()
+        inputVal = input('Please enter the maker of the vehicle: ')
         maker = self.checkFormat(inputVal, 'char', 20)
 
-        inputVal = input('Please enter the model of the vehicle: ').strip()
+        inputVal = input('Please enter the model of the vehicle: ')
         model = self.checkFormat(inputVal, 'char', 20)
 
-        inputVal = input('Please enter the year of production of the vehicle: ').strip()
+        inputVal = input('Please enter the year of production of the vehicle: ')
         year = self.checkFormat(inputVal, 'date', 0)
 
-        inputVal = input('Please enter the color of the vehicle: ').strip()
+        inputVal = input('Please enter the color of the vehicle: ')
         color = self.checkFormat(inputVal, 'char', 10)
 
-        ###################
+        inputVal = input('Please enter the type id of the vehicle: ')
+        typeId = self.checkReference('vehicle_type','type_id',inputVal, 'number', 1)
+        
+        #insertion = self.connection.createInsertion()
+        #self.connection.executeStmt(insertion)
+        print('Succeed')
 
         if input('Re-select the program?[y/n]')=='y':
-            return 0
-        
-        
+            return 0 # select other programs
+        else:
+            return 'Q' # quit
+
 
     def newPeopleRegistration(self, sin):
         '''
@@ -224,11 +295,11 @@ class application:
         '''
         pass
 
-    def isSerialNoExist(self, serialNo):
-        return True
+    def ifSerialNumExist(self, serialNo):
+        return self.connection.ifExist('vehicle','serial_no',serialNo)
 
-    def isSinExist(self, sin):
-        return True
+    def ifSinExist(self, sin):
+        return self.connection.ifExist('people','sin',sin)
 
     def hasLicence(self, sin):
         return True
