@@ -44,6 +44,7 @@ class Connection:
     
     def fetchResult(self, query):
         curs = self.connection.cursor()
+        curs.execute(query)
         rows = curs.fetchall() #list??
         curs.close()
         return rows
@@ -75,7 +76,7 @@ class Connection:
         return:
         (str): sql query statement
         '''
-        return 'SELECT'+columns+'FROM'+tables+'WHERE'+conditions
+        return 'SELECT '+columns+' FROM '+tables+' WHERE '+conditions
 
     def ifExist(self, table, keyAttr, value):
         '''
@@ -88,11 +89,13 @@ class Connection:
         
         Return: Bool
         '''
-        query = createQuery(keyAttr, table, keyAttr+'='+value)
-        if self.fetchResult(query)==[]:
-            return False
-        else:
+        query = self.createQuery(keyAttr, table, keyAttr+'='+value)
+        print(query)
+        try: #############################################
+            self.fetchResult(query)
             return True
+        except cx_Oracle.DatabaseError:
+            return False
 
     def checkUnique(self, table, data):
         pass
@@ -164,7 +167,7 @@ class application:
         (str) the validated input
         '''
         value = value.strip()
-        while value='': #check if the input is blank
+        while value=='': #check if the input is blank
             print('Oops, you are not entering anything...')
             value = input('Please re-input: ').strip()
 
