@@ -1,7 +1,7 @@
 '''
 Project 1
 
-Copyright 2016, Zhaorui CHEN, Nicholas LI, Jiaxuan YUE
+Copyright 2016, Zhaorui CHEN(Teppie), Nicholas LI, Jiaxuan YUE
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -48,10 +48,21 @@ class Connection:
         curs.close()
         return rows
 
-    def createInsertion(self, table, data):
-        pass
+    def createInsertion(self, table, *args):
+        '''
+        Return the sql INSERT statement in string
+        '''
+        insertion = 'INSERT INTO %s VALUES (' % table
+        for i in range(0, len(args)-1):
+            insertion += args[i]
+            insertion += ', '
 
-    def createDeletion(self, table, data):
+        insertion+= args[-1]
+        insertion+=')'
+
+        return insertion
+
+    def createDeletion(self, table, *args):
         pass
 
     def createQuery(self, columns, tables, conditions):
@@ -150,7 +161,7 @@ class application:
         misc(list/int): the list of miscellaneous properties, eg. length of the integer
 
         Return:
-        the casted input which is in the correct type
+        (str) the validated input
         '''
         value = value.strip()
         while value='': #check if the input is blank
@@ -260,8 +271,14 @@ class application:
         sin = self.checkFormat(inputVal, 'char', 15)
         if not self.ifSinExist(sin):
             print('Sin NOT VALID.')
-            while
-            #newPeopleRegistration(sin)
+            check = 0
+            while check!='1' and check!='2':
+                check = input('Re-input sin [1] OR register this person to database [2]? ').strip()
+            if check=='1':
+                inputVal = input('Please enter SIN of the owner')
+                sin = self.checkFormat(inputVal, 'char', 15)
+            else:
+                self.newPeopleRegistration(sin) ############
 
         inputVal = input('Please enter the maker of the vehicle: ')
         maker = self.checkFormat(inputVal, 'char', 20)
@@ -293,7 +310,42 @@ class application:
         helper function. Only triggered when specific sin
         is not found in the database
         '''
-        pass
+        inputVal = input('Please enter the name of this person: ')
+        name = self.checkFormat(inputVal, 'char', 40)
+
+        inputVal = input('Please enter the height of this person: ')
+        height = self.checkFormat(inputVal, 'number', [5,2])
+
+        inputVal = input('Please enter the weight of this person: ')
+        weight = self.checkFormat(inputVal, 'number', [5,2])
+
+        inputVal = input('Please enter the eye color of this person: ')
+        eyeColor = self.checkFormat(inputVal, 'char', 10)
+
+        inputVal = input('Please enter the hair color of this person: ')
+        hairColor = self.checkFormat(inputVal, 'char', 10)
+        
+        inputVal = input('Please enter the address of this person: ')
+        addr = self.checkFormat(inputVal, 'char', 50)
+
+        gender = input('Please enter the gender of this person[m/f]: ')
+        while self.isGenderCorrect(gender):
+            print('Input not correct. Please use "m" or "f" for male or female')
+            gender = input('Please re-input[m/f]: ')
+            
+        inputVal = input('Please enter the birthday[DD-MM-YYYY]:')
+        birthday = self.checkFormat(inputVal, 'date', 0) ####
+
+        insertion = self.connection.createInsertion('people',\
+                                                        sin, name, height, weight,\
+                                                        eyeColor, hairColor, addr,\
+                                                        gender, birthday)
+        self.connection.executeStmt(insertion)
+        print('New people has been successfully registered')
+        return
+
+    def isGenderCorrect(self, gender):
+        return gender=='m' or gender=='f' or gender=='M' or gender=='F'
 
     def ifSerialNumExist(self, serialNo):
         return self.connection.ifExist('vehicle','serial_no',serialNo)
