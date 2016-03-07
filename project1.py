@@ -365,6 +365,9 @@ class application:
     def violationRecord(self):
         pass
 
+    def searchEngine(self):
+        pass
+
 if __name__ == '__main__':
     app = application()
     app.main()
