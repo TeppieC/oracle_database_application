@@ -18,6 +18,7 @@ limitations under the License.
 import sys
 import cx_Oracle # the package used for accessing Oracle in Python
 import getpass # the package for getting password from user without displaying it
+import time
 
 class Connection:
     def __init__(self):
@@ -63,8 +64,8 @@ class Connection:
 
         return insertion
 
-    def createDeletion(self, table, *args):
-        pass
+    def createDeletion(self, table, keyAttr, value):
+        return 'DELETE FROM '+table+' WHERE '+keyAttr+'='+value+';'
 
     def createQuery(self, columns, tables, conditions):
         '''
@@ -300,6 +301,8 @@ class application:
         
         #insertion = self.connection.createInsertion()
         #self.connection.executeStmt(insertion)
+
+        # insert to owner with pri=y
         print('Succeed')
 
         if input('Re-select the program?[y/n]')=='y':
@@ -350,9 +353,35 @@ class application:
     def isGenderCorrect(self, gender):
         return gender=='m' or gender=='f' or gender=='M' or gender=='F'
 
+    def isPrimaryOwnerCorrect(self, pri):
+        return pri=='n' or pri=='y' or pri=='Y' or pri=='N'
+
     def ifSerialNumExist(self, serialNo):
         return self.connection.ifExist('vehicle','serial_no',serialNo)
 
+    def generateTransactionId(self, seller, serialNo):
+        return 'TRANS'+time.strftime('%Y%m%d')+seller+serialNo
+
+    def getCurrentDate(self):
+        day = time.strftime('%d')
+        year = time.strftime('%Y')
+        mon = time.strftime('%m')
+        month = {
+                        '01': 'JUN',
+                        '02': 'FEB',
+                        '03': 'MAR',
+                        '04': 'APR',
+                        '05': 'MAY',
+                        '06': 'JUN',
+                        '07': 'JUL',
+                        '08': 'AUG',
+                        '09': 'SEP',
+                        '10': 'OCT',
+                        '11': 'NOV',
+                        '12': 'DEC',
+                        }.get(mon)
+        return day+'-'+month+'-'+year
+        
     def ifSinExist(self, sin):
         return self.connection.ifExist('people','sin',sin)
 
@@ -363,7 +392,43 @@ class application:
         pass
 
     def autoTransaction(self):
-        pass
+        # need preventing input errors?
+        inputVal = input('Please enter SIN of the seller')
+        sId = self.checkReference('people', 'sin', inputVal, 'char', 15)
+
+        inputVal = input('Please enter SIN of the buyer')
+        bId = self.checkReference('people', 'sin', inputVal, 'char', 15)
+
+        inputVal = input('Please enter the serial number: ')
+        vId = self.checkReference('vehicle', 'serial_no', inputVal, 'char', 15)
+        
+        #generate the transaction id
+        tId = self.generateTransactionId(sId, vId)
+        
+        #get the date
+        sDate = self.getCurrentDate()
+
+        inputVal = input('Please enter the price of the transction: ')
+        price = self.checkFormat(inputVal, 'integer', [9,2])
+        
+        insertion = self.connection.createInsertion('auto_sale', tId, \
+                                                        sId, bId, vId, sDate, price)
+        self.connection.executeStmt(insertion)
+
+        deletion = self.connection.createDeletion('owner', \
+                                                      '(owner_id, vehicle_id)', \
+                                                      '(%s, %s)'%(sId, vId))
+        self.connection.executeStmt(deletion)
+
+        insertion = self.connection.createInsertion('owner', bId, vId, 'y')
+        self.connection.executeStmt(insertion)
+
+        print('Succeed')
+
+        if input('Re-select the program?[y/n]')=='y':
+            return 0 # select other programs
+        else:
+            return 'Q' # quit
 
     def violationRecord(self):
         pass
