@@ -41,6 +41,7 @@ class Connection:
     def executeStmt(self, stmt):
         curs = self.connection.cursor()
         curs.execute(stmt)
+        self.connection.commit()
         curs.close()
     
     def fetchResult(self, query):
@@ -92,11 +93,13 @@ class Connection:
         '''
         query = self.createQuery(keyAttr, table, keyAttr+'='+value)
         print(query)
-        try: #############################################
-            self.fetchResult(query)
+            #############################################
+        if not self.fetchResult(query)==[]:
             return True
-        except cx_Oracle.DatabaseError:
+        else:
             return False
+        #except cx_Oracle.DatabaseError:
+        #    return False
 
     def checkUnique(self, table, data):
         pass
@@ -178,12 +181,12 @@ class application:
                     print('Input is too long. Input should have %d characters' % misc)
                     value = input('Please re-input: ').strip()
                 else: 
-                    return value
+                    return '\''+value+'\''
         elif inputType=='integer': # validate the input for INTEGER
             while True:
                 if not value.isdigit():
                     print('Input is not a numeric type')
-                    value = input('Please re-input').strip()
+                    value = input('Please re-input: ').strip()
                 else:
                     return value
         elif inputType=='number': # validate the input for NUMBER
@@ -197,6 +200,13 @@ class application:
                     print('Input is not a numeric type')
                     value = input('Please re-input: ').strip()
                     continue
+
+                # if the required decimal length is 0
+                if misc[1]==0:
+                    while len(value)!=misc[0] or not value.isdigit():
+                        print('Input is not valid')
+                        value = input('Please re-input: ').strip()
+                    return value
                     
                 # check if has the correct length
                 if len(value)>misc[0]+1:
@@ -206,7 +216,7 @@ class application:
 
                 # check if has the correct decimal length
                 if not value[-(misc[1]+1)]=='.':
-                    print('Input should have %d decimal digits' % misc[1])
+                    print('Input should have length of %d, and %d decimal digits' % (misc[0],misc[1]))
                     value = input('Please re-input: ').strip()
                     continue
                 return value
@@ -265,22 +275,23 @@ class application:
         '''
         First program.
         '''
+        print('#'*80)
         inputVal = input('Please enter the serial number: ')
-        serialNo = self.checkFormat(inputVal, 'char', 15)
+        serialNo = self.checkFormat(inputVal, 'char', 15) #should accept letters
         while self.ifSerialNumExist(serialNo):
             print('Vehicle already exist.')
             inputVal = input('Please enter another serial number: ')
             serialNo = self.checkFormat(inputVal, 'char', 15)
 
-        inputVal = input('Please enter SIN of the owner')
-        sin = self.checkFormat(inputVal, 'char', 15)
-        if not self.ifSinExist(sin):
+        inputVal = input('Please enter SIN of the owner: ')
+        sin = self.checkFormat(inputVal, 'char', 15)# should accept letters
+        while not self.ifSinExist(sin):
             print('Sin NOT VALID.')
             check = 0
             while check!='1' and check!='2':
                 check = input('Re-input sin [1] OR register this person to database [2]? ').strip()
             if check=='1':
-                inputVal = input('Please enter SIN of the owner')
+                inputVal = input('Please enter SIN of the owner: ')
                 sin = self.checkFormat(inputVal, 'char', 15)
             else:
                 self.newPeopleRegistration(sin) ############
@@ -292,19 +303,21 @@ class application:
         model = self.checkFormat(inputVal, 'char', 20)
 
         inputVal = input('Please enter the year of production of the vehicle: ')
-        year = self.checkFormat(inputVal, 'date', 0)
+        year = self.checkFormat(inputVal, 'number', [4,0])
 
         inputVal = input('Please enter the color of the vehicle: ')
         color = self.checkFormat(inputVal, 'char', 10)
 
         inputVal = input('Please enter the type id of the vehicle: ')
-        typeId = self.checkReference('vehicle_type','type_id',inputVal, 'number', 1)
+        typeId = self.checkReference('vehicle_type','type_id',inputVal, 'integer', 1)
         
-        #insertion = self.connection.createInsertion()
-        #self.connection.executeStmt(insertion)
+        insertion = self.connection.createInsertion('vehicle', serialNo, maker,\
+                                                    model, year, color, typeId)
+        self.connection.executeStmt(insertion)
+        insertion = self.connection.createInsertion('owner', sin, serialNo, "'y'")
+        self.connection.executeStmt(insertion)
 
-        # insert to owner with pri=y
-        print('Succeed')
+        print('Succeed!!!!!!!')
 
         if input('Re-select the program?[y/n]')=='y':
             return 0 # select other programs
@@ -404,10 +417,10 @@ class application:
 
     def autoTransaction(self):
         # need preventing input errors?
-        inputVal = input('Please enter SIN of the seller')
+        inputVal = input('Please enter SIN of the seller: ')
         sId = self.checkReference('people', 'sin', inputVal, 'char', 15)
 
-        inputVal = input('Please enter SIN of the buyer')
+        inputVal = input('Please enter SIN of the buyer: ')
         bId = self.checkReference('people', 'sin', inputVal, 'char', 15)
 
         inputVal = input('Please enter the serial number: ')
