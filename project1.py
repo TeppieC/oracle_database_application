@@ -360,8 +360,8 @@ class application:
     def ifTransactionIdExist(self, tId):
         return self.connection.ifExist('auto_sale','t_id',tId)
 
-    def ifSerialNumExist(self, serialNo):
-        return self.connection.ifExist('vehicle','serial_no',serialNo)
+    def ifTicketNoExist(self, tNo):
+        return self.connection.ifExist('ticket','ticket_no', tNo)
 
     def ifSerialNumExist(self, serialNo):
         return self.connection.ifExist('vehicle','serial_no',serialNo)
@@ -475,10 +475,22 @@ class application:
         sDate = self.getCurrentDate()
         print('Violation date is at %s'%sDate)
 
+        inputVal = input('Please enter the place: ')
+        place = self.checkFormat(inputVal, 'char', 20)
         
-        
+        inputVal = input('Please enter the description: ')
+        descr = self.checkFormat(inputVal, 'char', 1024)
 
-        pass
+        insertion = self.connection.createInsertion('owner', bId, vId, 'y')
+        self.connection.executeStmt(insertion)
+
+        print('Succeed')
+
+        if input('Re-select the program?[y/n]')=='y':
+            return 0 # select other programs
+        else:
+            return 'Q' # quit
+        
 
     def searchEngine(self):
         pass
