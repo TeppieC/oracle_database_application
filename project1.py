@@ -258,6 +258,7 @@ class application:
         while not self.connection.ifExist(table, keyAttr, value):
             print('The key "%s" is not exist in the reference table "%s"'%(value, table))
             value = input('Please re-input: ').strip()
+            value = self.checkFormat(value, inputType, misc)
         return value
 
     def newVehicleRegistration(self):
@@ -356,11 +357,27 @@ class application:
     def isPrimaryOwnerCorrect(self, pri):
         return pri=='n' or pri=='y' or pri=='Y' or pri=='N'
 
+    def ifTransactionIdExist(self, tId):
+        return self.connection.ifExist('auto_sale','t_id',tId)
+
     def ifSerialNumExist(self, serialNo):
         return self.connection.ifExist('vehicle','serial_no',serialNo)
 
-    def generateTransactionId(self, seller, serialNo):
-        return 'TRANS'+time.strftime('%Y%m%d')+seller+serialNo
+    def ifSerialNumExist(self, serialNo):
+        return self.connection.ifExist('vehicle','serial_no',serialNo)
+
+    def ifSinExist(self, sin):
+        return self.connection.ifExist('people','sin',sin)
+
+#    def generateTransactionId(self):
+#        # example: 420150904221533001
+#        tId = '4'+time.strftime('%Y%m%d')+time.strftime('%H:%M:%S')
+#        count = self.connection.executeStmt(\
+#            self.connection.getCount('auto_sale', 'transaction_id', tId+'%'))
+#        return '4'+time.strftime('%Y%m%d')+time.strftime('%H:%M:%S')
+
+ #   def generateTicketNo(self, officer):
+ #       return time.strftime('%Y%m%d')+seller+serialNo
 
     def getCurrentDate(self):
         day = time.strftime('%d')
@@ -382,12 +399,6 @@ class application:
                         }.get(mon)
         return day+'-'+month+'-'+year
         
-    def ifSinExist(self, sin):
-        return self.connection.ifExist('people','sin',sin)
-
-    def hasLicence(self, sin):
-        return True
-
     def newDriverRegistration(self):
         pass
 
@@ -403,8 +414,15 @@ class application:
         vId = self.checkReference('vehicle', 'serial_no', inputVal, 'char', 15)
         
         #generate the transaction id
-        tId = self.generateTransactionId(sId, vId)
+        #tId = self.generateTransactionId(sId, vId)
         
+        #input the transaction id
+        tId = self.checkFormat(input('Please enter the transaction ID: '), 'integer',1)
+        while self.ifTransactionIdExist(tId):
+            print('Transaction ID already exist.')
+            inputVal = input('Please enter another transaction ID: ')
+            tId = self.checkFormat(inputVal, 'integer', 1)
+
         #get the date
         sDate = self.getCurrentDate()
 
@@ -431,6 +449,35 @@ class application:
             return 'Q' # quit
 
     def violationRecord(self):
+        print('#'*80)
+        print('Welcome to violation record system.')
+
+        # input the ticket number
+        tNo = self.checkFormat(input('Please enter the ticket number: '), 'integer',1)
+        while self.ifTicketNumerExist(tNo):
+            print('Ticket number already exist.')
+            inputVal = input('Please enter another ticket number: ')
+            tNo = self.checkFormat(inputVal, 'integer', 1)
+
+        inputVal = input('Please enter SIN of the officer: ')
+        officerId = self.checkReference('people', 'sin', inputVal, 'char', 15)
+        
+        inputVal = input('Please enter SIN of the violator: ')
+        violatorId = self.checkReference('people', 'sin', inputVal, 'char', 15)
+        
+        inputVal = input('Please enter the serial number of the vehicle: ')
+        vId = self.checkReference('vehicle', 'serial_no', inputVal, 'char', 15)
+
+        inputVal = input('Please enter the violation type: ')
+        vType = self.checkReference('ticket_type', 'vtype', inputVal, 'char', 10)
+
+        #get the date
+        sDate = self.getCurrentDate()
+        print('Violation date is at %s'%sDate)
+
+        
+        
+
         pass
 
     def searchEngine(self):
