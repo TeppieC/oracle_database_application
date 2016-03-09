@@ -1,9 +1,0 @@
-B-tree
-A balanced BST
-order of the Btree
-
-BST:
-no need to sort
-log2N
-
-AVL:
