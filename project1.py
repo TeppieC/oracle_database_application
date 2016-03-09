@@ -47,7 +47,7 @@ class Connection:
     def fetchResult(self, query):
         curs = self.connection.cursor()
         curs.execute(query)
-        rows = curs.fetchall() #list??
+        rows = curs.fetchall() 
         curs.close()
         return rows
 
@@ -63,7 +63,7 @@ class Connection:
         insertion+= args[-1]
         insertion+=')'
 
-        print(insertion)
+        #print(insertion)
 
         return insertion
 
@@ -218,7 +218,7 @@ class application:
 
                 # check if has the correct decimal length
                 if not value[-(misc[1]+1)]=='.':
-                    print('Input should have length of %d, and %d decimal digits' % (misc[0],misc[1]))
+                    print('Input should have max length of %d, and %d decimal digits' % (misc[0],misc[1]))
                     value = input('Please re-input: ').strip()
                     continue
                 return value
@@ -373,7 +373,7 @@ class application:
         return pri=='n' or pri=='y' or pri=='Y' or pri=='N'
 
     def ifTransactionIdExist(self, tId):
-        return self.connection.ifExist('auto_sale','t_id',tId)
+        return self.connection.ifExist('auto_sale','transaction_id',tId)
 
     def ifTicketNoExist(self, tNo):
         return self.connection.ifExist('ticket','ticket_no', tNo)
@@ -413,11 +413,11 @@ class application:
                         '12': 'DEC',
                         }.get(mon)
         return day+'-'+month+'-'+year
-        
-    def newDriverRegistration(self):
-        pass
+    
 
     def autoTransaction(self):
+        print('#'*80)
+
         # need preventing input errors?
         inputVal = input('Please enter SIN of the seller: ')
         sId = self.checkReference('people', 'sin', inputVal, 'char', 15)
@@ -440,20 +440,22 @@ class application:
 
         #get the date
         sDate = self.getCurrentDate()
+        print('Transaction time is: %s'%sDate)
 
         inputVal = input('Please enter the price of the transction: ')
-        price = self.checkFormat(inputVal, 'integer', [9,2])
+        price = self.checkFormat(inputVal, 'number', [9,2])
         
         insertion = self.connection.createInsertion('auto_sale', tId, \
-                                                        sId, bId, vId, sDate, price)
+                                                    sId, bId, vId, \
+                                                    "'"+sDate+"'", price)
         self.connection.executeStmt(insertion)
 
-        deletion = self.connection.createDeletion('owner', \
-                                                      '(owner_id, vehicle_id)', \
-                                                      '(%s, %s)'%(sId, vId))
+        ##TODO: revise createDeletion()
+        deletion = 'DELETE FROM owner WHERE owner_id=%s AND vehicle_id=%s'%(sId,vId)
         self.connection.executeStmt(deletion)
 
-        insertion = self.connection.createInsertion('owner', bId, vId, 'y')
+        ##TODO: extend primary owner from seller
+        insertion = self.connection.createInsertion('owner', bId, vId, "'y'")
         self.connection.executeStmt(insertion)
 
         print('Succeed')
@@ -506,6 +508,8 @@ class application:
         else:
             return 'Q' # quit
         
+    def newDriverRegistration(self):
+        pass
 
     def searchEngine(self):
         pass
@@ -513,3 +517,10 @@ class application:
 if __name__ == '__main__':
     app = application()
     app.main()
+
+
+### TODO:
+### 1. refactor
+### 2. transaction-->commit
+### 3. allow integer cast into float
+### 4. avoid selling car without ownership
