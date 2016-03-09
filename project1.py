@@ -63,6 +63,8 @@ class Connection:
         insertion+= args[-1]
         insertion+=')'
 
+        print(insertion)
+
         return insertion
 
     def createDeletion(self, table, keyAttr, value):
@@ -92,7 +94,7 @@ class Connection:
         Return: Bool
         '''
         query = self.createQuery(keyAttr, table, keyAttr+'='+value)
-        print(query)
+        ####print(query)
             #############################################
         if not self.fetchResult(query)==[]:
             return True
@@ -349,7 +351,7 @@ class application:
         addr = self.checkFormat(inputVal, 'char', 50)
 
         gender = input('Please enter the gender of this person[m/f]: ')
-        while self.isGenderCorrect(gender):
+        while not self.isGenderCorrect(gender):
             print('Input not correct. Please use "m" or "f" for male or female')
             gender = input('Please re-input[m/f]: ')
             
@@ -359,7 +361,7 @@ class application:
         insertion = self.connection.createInsertion('people',\
                                                         sin, name, height, weight,\
                                                         eyeColor, hairColor, addr,\
-                                                        gender, birthday)
+                                                        "'"+gender+"'", "'"+birthday+"'")
         self.connection.executeStmt(insertion)
         print('New people has been successfully registered')
         return
