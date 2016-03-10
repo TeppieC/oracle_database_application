@@ -39,12 +39,19 @@ class Connection:
         self.connection.close()
 
     def executeStmt(self, stmt):
+        '''
+        execute the given statement but doesn't return anything
+        '''
         curs = self.connection.cursor()
         curs.execute(stmt)
         self.connection.commit()
         curs.close()
     
     def fetchResult(self, query):
+        '''
+        execute the given query to the database and 
+        return the result in a list
+        '''
         curs = self.connection.cursor()
         curs.execute(query)
         rows = curs.fetchall() 
@@ -203,13 +210,20 @@ class application:
                     value = input('Please re-input: ').strip()
                     continue
 
+                # special case for year input
                 # if the required decimal length is 0
+                # then it should accept the inputs without "."
                 if misc[1]==0:
                     while len(value)!=misc[0] or not value.isdigit():
-                        print('Input is not valid')
+                        print('Input should have length of %s'%misc[0])
                         value = input('Please re-input: ').strip()
                     return value
                     
+                # if the input is in integer string, instead of float string#####################################3
+                if value.isdigit():
+                    # explicitly cast it into a float string
+                    value = value+'.%s'%('0'*misc[1])
+
                 # check if has the correct length
                 if len(value)>misc[0]+1:
                     print('Input is too long. Input should have %d digits(including decimal)' % misc[0])
@@ -278,14 +292,21 @@ class application:
         First program.
         '''
         print('#'*80)
+        print('Welcome to the new vehicle registration system')
+
+        # acquire for serial no
         inputVal = input('Please enter the serial number: ')
         serialNo = self.checkFormat(inputVal, 'char', 15) #should accept letters
+        # if the serial no is already in the database, ask for re-input
         while self.ifSerialNumExist(serialNo):
             print('Vehicle already exist.')
             inputVal = input('Please enter another serial number: ')
             serialNo = self.checkFormat(inputVal, 'char', 15)
 
+        # acquire for sin of the owner
         inputVal = input('Please enter SIN of the owner: ')
+        # if the sin is not in the database,
+        # let the user choose between re-input and register new people
         sin = self.checkFormat(inputVal, 'char', 15)# should accept letters
         while not self.ifSinExist(sin):
             print('Sin NOT VALID.')
@@ -296,7 +317,7 @@ class application:
                 inputVal = input('Please enter SIN of the owner: ')
                 sin = self.checkFormat(inputVal, 'char', 15)
             else:
-                self.newPeopleRegistration(sin) ############
+                self.newPeopleRegistration(sin) 
 
         inputVal = input('Please enter the maker of the vehicle: ')
         maker = self.checkFormat(inputVal, 'char', 20)
@@ -313,13 +334,14 @@ class application:
         inputVal = input('Please enter the type id of the vehicle: ')
         typeId = self.checkReference('vehicle_type','type_id',inputVal, 'integer', 1)
         
+        # excute insert statement to the corresponding tables
         insertion = self.connection.createInsertion('vehicle', serialNo, maker,\
                                                     model, year, color, typeId)
         self.connection.executeStmt(insertion)
         insertion = self.connection.createInsertion('owner', sin, serialNo, "'y'")
         self.connection.executeStmt(insertion)
 
-        print('Succeed!!!!!!!')
+        print('Succeed')
 
         if input('Re-select the program?[y/n]')=='y':
             return 0 # select other programs
@@ -350,13 +372,16 @@ class application:
         inputVal = input('Please enter the address of this person: ')
         addr = self.checkFormat(inputVal, 'char', 50)
 
+        # acquire for gender
+        # if the input is not between 'f' and 'm', ask the user to re-input
         gender = input('Please enter the gender of this person[m/f]: ')
         while not self.isGenderCorrect(gender):
             print('Input not correct. Please use "m" or "f" for male or female')
             gender = input('Please re-input[m/f]: ')
             
+        # acquire for birthday
         inputVal = input('Please enter the birthday[DD-MM-YYYY]:')
-        birthday = self.checkFormat(inputVal, 'date', 0) ####
+        birthday = self.checkFormat(inputVal, 'date', 0) 
 
         insertion = self.connection.createInsertion('people',\
                                                         sin, name, height, weight,\
@@ -414,25 +439,55 @@ class application:
                         }.get(mon)
         return day+'-'+month+'-'+year
     
+    def isPrimaryOwner(self, sin, serialNo):
+        '''
+        helper function to check if the seller is
+        actually the primary owner of the vehicle
+        '''
+        query = 'SELECT is_primary_owner FROM owner WHERE owner_id='+sin+' AND vehicle_id='+serialNo
+        check = self.connection.fetchResult(query)
+        if check=='y' or check=='Y':
+            return 0
+        elif check=='n' or check=='N':
+            return 1
+        else: # if no result matched
+            # then the car is not owned by the people
+            return 2
 
     def autoTransaction(self):
         print('#'*80)
+        print('Welcome to auto transaction system')
 
-        # need preventing input errors?
-        inputVal = input('Please enter SIN of the seller: ')
-        sId = self.checkReference('people', 'sin', inputVal, 'char', 15)
+        # if the seller is not the primary owner of the vehicle, he cannot sell this vehicle
+        # keep acquiring the sin of the seller and serial no of the vehicle
+        while True:
+            inputVal = input('Please enter SIN of the seller: ')
+            sId = self.checkReference('people', 'sin', inputVal, 'char', 15)
+
+            inputVal = input('Please enter the serial number: ')
+            vId = self.checkReference('vehicle', 'serial_no', inputVal, 'char', 15)
+
+            # check if the vehicle is primarily owned by the people
+            check = self.isPrimaryOwner(sId, vId)
+        
+            if check==0:
+                break
+            elif check==1:
+                print('The people is not the primary owner, please try another one')
+                continue
+            elif check==2:
+                print('The people doesn\'t own the vehicle at all. Please try another one')
+                continue
 
         inputVal = input('Please enter SIN of the buyer: ')
         bId = self.checkReference('people', 'sin', inputVal, 'char', 15)
-
-        inputVal = input('Please enter the serial number: ')
-        vId = self.checkReference('vehicle', 'serial_no', inputVal, 'char', 15)
         
         #generate the transaction id
         #tId = self.generateTransactionId(sId, vId)
         
         #input the transaction id
         tId = self.checkFormat(input('Please enter the transaction ID: '), 'integer',1)
+        # if the transaction id is already existed, ask for re-input
         while self.ifTransactionIdExist(tId):
             print('Transaction ID already exist.')
             inputVal = input('Please enter another transaction ID: ')
@@ -450,7 +505,7 @@ class application:
                                                     "'"+sDate+"'", price)
         self.connection.executeStmt(insertion)
 
-        ##TODO: revise createDeletion()
+        ##TODO: delete all non-primary owner?####################################################
         deletion = 'DELETE FROM owner WHERE owner_id=%s AND vehicle_id=%s'%(sId,vId)
         self.connection.executeStmt(deletion)
 
@@ -489,8 +544,8 @@ class application:
         vType = self.checkReference('ticket_type', 'vtype', inputVal, 'char', 10)
 
         #get the date
-        sDate = self.getCurrentDate()
-        print('Violation date is at %s'%sDate)
+        vDate = self.getCurrentDate()
+        print('Violation date is at %s'%vDate)
 
         inputVal = input('Please enter the place: ')
         place = self.checkFormat(inputVal, 'char', 20)
@@ -498,7 +553,9 @@ class application:
         inputVal = input('Please enter the description: ')
         descr = self.checkFormat(inputVal, 'char', 1024)
 
-        insertion = self.connection.createInsertion('owner', bId, vId, 'y')
+        insertion = self.connection.createInsertion('ticket', tNo,\
+                                                        violatorId, vId, officerId.\
+                                                        vType, vDate, place, descr)
         self.connection.executeStmt(insertion)
 
         print('Succeed')
@@ -522,5 +579,5 @@ if __name__ == '__main__':
 ### TODO:
 ### 1. refactor
 ### 2. transaction-->commit
-### 3. allow integer cast into float
-### 4. avoid selling car without ownership
+
+
