@@ -1,7 +1,7 @@
 '''
 Project 1
 
-Copyright 2016, Zhaorui CHEN(Teppie), Nicholas LI, Jiaxuan YUE
+Copyright 2016, Zhaorui CHEN(Teppie), Nicholas(Zhengyang) LI, Jiaxuan YUE
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -569,6 +569,14 @@ class application:
         pass
 
     def searchEngine(self):
+        #1. use regular expression to determine what input it is or use manu to nevigate to 
+        #target
+            #sin: char(15),name:varchar(40),licence no:char(15),serial_no:char(15)
+        #2. if name input: List the name, licence_no, addr, birthday, driving class, driving_condition, and the expiring_data
+        #   if licence no input: List the name, licence_no, addr, birthday, driving class, driving_condition, the expiring_data, all violation records received by a person
+        #   if sin input: List all violation records received
+        #   if serial no input: Print out the vehicle_history, including the number of times that a vehicle has been changed hand, the average price, and the number of 
+        #   violations it has been involved
         pass
 
 if __name__ == '__main__':
