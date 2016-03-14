@@ -52,6 +52,7 @@ class Connection:
         execute the given query to the database and 
         return the result in a list
         '''
+        print(query)
         curs = self.connection.cursor()
         curs.execute(query)
         rows = curs.fetchall() 
@@ -101,8 +102,6 @@ class Connection:
         Return: Bool
         '''
         query = self.createQuery(keyAttr, table, keyAttr+'='+value)
-        ####print(query)
-            #############################################
         if not self.fetchResult(query)==[]:
             return True
         else:
@@ -281,6 +280,8 @@ class application:
         '''
         helper function to validate input and check if the reference key is valid
         '''
+        #if inputType == 'char' or inputType == 'date':
+        #    value = "'"+value+"'"
         while not self.connection.ifExist(table, keyAttr, value):
             print('The key "%s" is not exist in the reference table "%s"'%(value, table))
             value = input('Please re-input: ').strip()
@@ -409,34 +410,24 @@ class application:
     def ifSinExist(self, sin):
         return self.connection.ifExist('people','sin',sin)
 
-#    def generateTransactionId(self):
-#        # example: 420150904221533001
-#        tId = '4'+time.strftime('%Y%m%d')+time.strftime('%H:%M:%S')
-#        count = self.connection.executeStmt(\
-#            self.connection.getCount('auto_sale', 'transaction_id', tId+'%'))
-#        return '4'+time.strftime('%Y%m%d')+time.strftime('%H:%M:%S')
-
- #   def generateTicketNo(self, officer):
- #       return time.strftime('%Y%m%d')+seller+serialNo
-
     def getCurrentDate(self):
         day = time.strftime('%d')
         year = time.strftime('%Y')
         mon = time.strftime('%m')
         month = {
-                        '01': 'JUN',
-                        '02': 'FEB',
-                        '03': 'MAR',
-                        '04': 'APR',
-                        '05': 'MAY',
-                        '06': 'JUN',
-                        '07': 'JUL',
-                        '08': 'AUG',
-                        '09': 'SEP',
-                        '10': 'OCT',
-                        '11': 'NOV',
-                        '12': 'DEC',
-                        }.get(mon)
+            '01': 'JUN',
+            '02': 'FEB',
+            '03': 'MAR',
+            '04': 'APR',
+            '05': 'MAY',
+            '06': 'JUN',
+            '07': 'JUL',
+            '08': 'AUG',
+            '09': 'SEP',
+            '10': 'OCT',
+            '11': 'NOV',
+            '12': 'DEC',
+        }.get(mon)
         return day+'-'+month+'-'+year
     
     def isPrimaryOwner(self, sin, serialNo):
@@ -444,7 +435,9 @@ class application:
         helper function to check if the seller is
         actually the primary owner of the vehicle
         '''
-        query = 'SELECT is_primary_owner FROM owner WHERE owner_id='+sin+' AND vehicle_id='+serialNo
+        # eg. sin --> "'9000001'"
+        # query --> "SELECT is_primary_owner FROM owner WHERE owner_id='9000001' AND vehicle_id='20034'"
+        query = "SELECT is_primary_owner FROM owner WHERE owner_id="+sin+" AND vehicle_id="+serialNo
         check = self.connection.fetchResult(query)
         if check=='y' or check=='Y':
             return 0
@@ -454,6 +447,18 @@ class application:
             # then the car is not owned by the people
             return 2
 
+    def generateTransactionId(self):
+        '''
+        generate the transaction id by querying the database.
+        Return int
+        '''
+        query = 'SELECT transaction_id FROM auto_sale WHERE transaction_id>=ALL(SELECT transaction_id FROM auto_sale)'
+        resultSet = self.connection.fetchResult(query)
+        if resultSet==[]:
+            return '1'
+        else:
+            return str(resultSet[0]+1)
+
     def autoTransaction(self):
         print('#'*80)
         print('Welcome to auto transaction system')
@@ -462,10 +467,13 @@ class application:
         # keep acquiring the sin of the seller and serial no of the vehicle
         while True:
             inputVal = input('Please enter SIN of the seller: ')
-            sId = self.checkReference('people', 'sin', inputVal, 'char', 15)
+            sId = self.checkReference('people', 'sin', "'"+inputVal+"'", 'char', 15)
+            #print(sId)-->'9000001'
 
             inputVal = input('Please enter the serial number: ')
-            vId = self.checkReference('vehicle', 'serial_no', inputVal, 'char', 15)
+            vId = self.checkReference('vehicle', 'serial_no', "'"+inputVal+"'", 'char', 15)
+            #print(vId)-->'20034'
+            #vId --> "'20034'"
 
             # check if the vehicle is primarily owned by the people
             check = self.isPrimaryOwner(sId, vId)
@@ -480,18 +488,19 @@ class application:
                 continue
 
         inputVal = input('Please enter SIN of the buyer: ')
-        bId = self.checkReference('people', 'sin', inputVal, 'char', 15)
+        bId = self.checkReference('people', 'sin', "'"+inputVal+"'", 'char', 15)
         
         #generate the transaction id
-        #tId = self.generateTransactionId(sId, vId)
-        
+        tId = self.generateTransactionId()
+        print(tId)
+
         #input the transaction id
-        tId = self.checkFormat(input('Please enter the transaction ID: '), 'integer',1)
+        #tId = self.checkFormat(input('Please enter the transaction ID: '), 'integer',1)
         # if the transaction id is already existed, ask for re-input
-        while self.ifTransactionIdExist(tId):
-            print('Transaction ID already exist.')
-            inputVal = input('Please enter another transaction ID: ')
-            tId = self.checkFormat(inputVal, 'integer', 1)
+        #while self.ifTransactionIdExist(tId):
+        #    print('Transaction ID already exist.')
+        #    inputVal = input('Please enter another transaction ID: ')
+        #    tId = self.checkFormat(inputVal, 'integer', 1)
 
         #get the date
         sDate = self.getCurrentDate()
@@ -505,11 +514,10 @@ class application:
                                                     "'"+sDate+"'", price)
         self.connection.executeStmt(insertion)
 
-        ##TODO: delete all non-primary owner?####################################################
         deletion = 'DELETE FROM owner WHERE owner_id=%s AND vehicle_id=%s'%(sId,vId)
         self.connection.executeStmt(deletion)
 
-        ##TODO: extend primary owner from seller
+        ## set the buyer to the only primary owner for now
         insertion = self.connection.createInsertion('owner', bId, vId, "'y'")
         self.connection.executeStmt(insertion)
 
@@ -526,7 +534,7 @@ class application:
 
         # input the ticket number
         tNo = self.checkFormat(input('Please enter the ticket number: '), 'integer',1)
-        while self.ifTicketNumerExist(tNo):
+        while self.ifTicketNoExist(tNo):
             print('Ticket number already exist.')
             inputVal = input('Please enter another ticket number: ')
             tNo = self.checkFormat(inputVal, 'integer', 1)
