@@ -102,7 +102,7 @@ class Connection:
 		Return: Bool
 		'''
 		query = self.createQuery(keyAttr, table, keyAttr+'='+value)
-		####print(query)
+		print(query)
 			#############################################
 		if not self.fetchResult(query)==[]:
 			return True
@@ -314,10 +314,10 @@ class application:
 			check = 0
 			while check!='1' and check!='2':
 				check = input('Re-input sin [1] OR register this person to database [2]? ').strip()
-			if check=='1':
+			if check=='1': # if the user want to re-input the sin
 				inputVal = input('Please enter SIN of the owner: ')
 				sin = self.checkFormat(inputVal, 'char', 15)
-			else:
+			else: # if the user want to register the people into the database
 				self.newPeopleRegistration(sin) 
 
 		inputVal = input('Please enter the maker of the vehicle: ')
@@ -529,7 +529,7 @@ class application:
 
 		# input the ticket number
 		tNo = self.checkFormat(input('Please enter the ticket number: '), 'integer',1)
-		while self.ifTicketNumerExist(tNo):
+		while self.ifTicketNoExist(tNo):##########################################################
 			print('Ticket number already exist.')
 			inputVal = input('Please enter another ticket number: ')
 			tNo = self.checkFormat(inputVal, 'integer', 1)
