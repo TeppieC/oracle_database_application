@@ -53,12 +53,12 @@ class Connection:
         execute the given query to the database and 
         return the result in a list
         '''
-        print(query)
+        print(query)#################################
         curs = self.connection.cursor()
         curs.execute(query)
         rows = curs.fetchall() 
         curs.close()
-        print(rows)
+        print(rows)###################################
         return rows
 
     def createInsertion(self, table, *args):
@@ -72,8 +72,6 @@ class Connection:
 
         insertion+= args[-1]
         insertion+=')'
-
-        #print(insertion)
 
         return insertion
 
@@ -403,14 +401,22 @@ class application:
     def ifTicketNoExist(self, tNo):
         return self.connection.ifExist('ticket','ticket_no', tNo)
 
-    def ifLicenceNoExist(self, LicenceNo):
-        return self.connection.ifExist('drive_licence','licence_no', LicenceNo)
-
     def ifSerialNumExist(self, serialNo):
         return self.connection.ifExist('vehicle','serial_no',serialNo)
 
     def ifSinExist(self, sin):
         return self.connection.ifExist('people','sin',sin)
+
+    def ifLicenceNoExist(self, LicenceNo):
+        return self.connection.ifExist('drive_licence','licence_no', LicenceNo)
+
+    def ifPossessLicence(self, sin):
+        '''
+        Determine if the people has already possessed
+        with a licence
+        '''
+        return self.connection.ifExist('drive_licence', 'sin', sin)
+
 
     def getCurrentDate(self):
         day = time.strftime('%d')
@@ -450,7 +456,7 @@ class application:
         elif check[0]=='n' or check[0]=='N':
             return 1
 
-    def generateTransactionId(self):######################################################################
+    def generateTransactionId(self):
         '''
         Generate and return the transaction id by querying in the database.
         '''
@@ -593,9 +599,42 @@ class application:
                 sin = self.checkFormat(inputVal, 'char', 15)
             else:
                 self.newPeopleRegistration(sin) 
-                
+                        
+        licenceNo = input('Please enter the licence number: ')
+        while ifLicenceExist(licenceNo):
+            print('Licence number already exist')
+            licenceNo = input('Please re-input: ')
+
+        inputVal = input('Please enter class of the licence: ')
+        class = self.checkFormat(inputVal, 'char', 10)
+        
+        inputVal = input('Please enter issuing date: ')
+        issueDate = self.checkFormat(inputVal, 'date', 1)
+        
+        inputVal = input('Please enter expiring date: ')
+        expireDate = self.checkFormat(inputVal, 'date', 1)
+
+        inputVal = input('Please enter the driving condition')
+        driveCondition = self.checkFormat(inputVal, 'char', 1024)
+            
+        photoName = input('Please enter the name of the photo file: ')
+        while True:
+            try:
+                photo = open(photoName, 'rb')
+                photoBlob = photo.read()
+                break
+            except IOError e:
+                print('No such file existed')
+                photoName = input('Please re-input the name: ')
+
+        cursor = self.connection.cursor()
+	#cursor.setinputsizes(photoBlob=cx_Oracle.BLOB)
+        insert = """insert into drive_licence (licence_no,sin,class,photo,issuing_date,expiring_date)
+    values (:licence_no,:sin,:class,:photo,:issuing_date,:expiring_date)"""
+        cursor.execute(insert, {'licence_no':licenceNo,'sin':sin,'class':class,'photo':photoBlob,'issuing_date':issueDate,'expiring_date':expireDate})
+        self.connection.commit()
+        photo.close()
         # unfinished
-        pass
 
     def searchEngine(self):
         namePattern = re.compile('[A-Z][a-z]{0,40}')
