@@ -19,6 +19,7 @@ import sys
 import cx_Oracle # the package used for accessing Oracle in Python
 import getpass # the package for getting password from user without displaying it
 import time
+import re
 
 class Connection:
     def __init__(self):
@@ -57,6 +58,7 @@ class Connection:
         curs.execute(query)
         rows = curs.fetchall() 
         curs.close()
+        print(rows)
         return rows
 
     def createInsertion(self, table, *args):
@@ -109,8 +111,6 @@ class Connection:
         #except cx_Oracle.DatabaseError:
         #    return False
 
-    def checkUnique(self, table, data):
-        pass
 
 class application:
     def __init__(self):
@@ -218,7 +218,6 @@ class application:
                         value = input('Please re-input: ').strip()
                     return value
                     
-                # if the input is in integer string, instead of float string#####################################3
                 if value.isdigit():
                     # explicitly cast it into a float string
                     value = value+'.%s'%('0'*misc[1])
@@ -404,6 +403,9 @@ class application:
     def ifTicketNoExist(self, tNo):
         return self.connection.ifExist('ticket','ticket_no', tNo)
 
+    def ifLicenceNoExist(self, LicenceNo):
+        return self.connection.ifExist('drive_licence','licence_no', LicenceNo)
+
     def ifSerialNumExist(self, serialNo):
         return self.connection.ifExist('vehicle','serial_no',serialNo)
 
@@ -438,26 +440,27 @@ class application:
         # eg. sin --> "'9000001'"
         # query --> "SELECT is_primary_owner FROM owner WHERE owner_id='9000001' AND vehicle_id='20034'"
         query = "SELECT is_primary_owner FROM owner WHERE owner_id="+sin+" AND vehicle_id="+serialNo
-        check = self.connection.fetchResult(query)
-        if check=='y' or check=='Y':
-            return 0
-        elif check=='n' or check=='N':
-            return 1
-        else: # if no result matched
+        check = self.connection.fetchResult(query)[0]
+        #print(check[0])
+        if not check:# if no result matched
             # then the car is not owned by the people
             return 2
+        if check[0]=='y' or check[0]=='Y':
+            return 0
+        elif check[0]=='n' or check[0]=='N':
+            return 1
 
-    def generateTransactionId(self):
+    def generateTransactionId(self):######################################################################
         '''
-        generate the transaction id by querying the database.
-        Return int
+        Generate and return the transaction id by querying in the database.
         '''
         query = 'SELECT transaction_id FROM auto_sale WHERE transaction_id>=ALL(SELECT transaction_id FROM auto_sale)'
         resultSet = self.connection.fetchResult(query)
+        print(resultSet)
         if resultSet==[]:
             return '1'
         else:
-            return str(resultSet[0]+1)
+            return str(resultSet[0][0]+1)
 
     def autoTransaction(self):
         print('#'*80)
@@ -492,7 +495,7 @@ class application:
         
         #generate the transaction id
         tId = self.generateTransactionId()
-        print(tId)
+        print('transaction id is: %s'%tId)
 
         #input the transaction id
         #tId = self.checkFormat(input('Please enter the transaction ID: '), 'integer',1)
@@ -540,19 +543,19 @@ class application:
             tNo = self.checkFormat(inputVal, 'integer', 1)
 
         inputVal = input('Please enter SIN of the officer: ')
-        officerId = self.checkReference('people', 'sin', inputVal, 'char', 15)
+        officerId = self.checkReference('people', 'sin', "'"+inputVal+"'", 'char', 15)
         
         inputVal = input('Please enter SIN of the violator: ')
-        violatorId = self.checkReference('people', 'sin', inputVal, 'char', 15)
+        violatorId = self.checkReference('people', 'sin', "'"+inputVal+"'", 'char', 15)
         
         inputVal = input('Please enter the serial number of the vehicle: ')
-        vId = self.checkReference('vehicle', 'serial_no', inputVal, 'char', 15)
+        vId = self.checkReference('vehicle', 'serial_no', "'"+inputVal+"'", 'char', 15)
 
         inputVal = input('Please enter the violation type: ')
-        vType = self.checkReference('ticket_type', 'vtype', inputVal, 'char', 10)
+        vType = self.checkReference('ticket_type', 'vtype', "'"+inputVal+"'", 'char', 10)
 
         #get the date
-        vDate = self.getCurrentDate()
+        vDate = "'"+self.getCurrentDate()+"'"
         print('Violation date is at %s'%vDate)
 
         inputVal = input('Please enter the place: ')
@@ -562,8 +565,9 @@ class application:
         descr = self.checkFormat(inputVal, 'char', 1024)
 
         insertion = self.connection.createInsertion('ticket', tNo,\
-                                                        violatorId, vId, officerId.\
+                                                        violatorId, vId, officerId,\
                                                         vType, vDate, place, descr)
+        print(insertion)
         self.connection.executeStmt(insertion)
 
         print('Succeed')
@@ -574,11 +578,169 @@ class application:
             return 'Q' # quit
         
     def newDriverRegistration(self):
+        # acquire for sin of the new driver
+        inputVal = input('Please enter SIN of the new driver: ')
+        # if the sin is not in the database,
+        # let the user choose between re-input and register new people
+        sin = self.checkFormat(inputVal, 'char', 15)# should accept letters
+        while not self.ifSinExist(sin):
+            print('Sin NOT VALID.')
+            check = 0
+            while check!='1' and check!='2':
+                check = input('Re-input sin [1] OR register this person to database [2]? ').strip()
+            if check=='1':
+                inputVal = input('Please enter SIN of the new driver: ')
+                sin = self.checkFormat(inputVal, 'char', 15)
+            else:
+                self.newPeopleRegistration(sin) 
+                
+        # unfinished
         pass
 
     def searchEngine(self):
-        pass
+        namePattern = re.compile('[A-Z][a-z]{0,40}')
+        idPattern = re.compile('\w{15}')
+        select = 0
+        print('#'*80)
+        print('Welcome to violation record system.\nPlease select what you want to search for:')
+        while not select:
+            print('[1]. Search for personal information')
+            print('[2]. Search for violation record')
+            print('[3]. Search for vehicle history')
+            print('[Q]. Back to main menu')
+            inputStr = input('Your choice: ')
+            select = {'1': 1 , '2': 2 , '3': 3 , 'Q': 'Q'}.get(inputStr,0)
+            if not select:
+                select = 0
+                print('Your input is invalid, please try again:')
+        
+        if select=='Q':
+            return 0
 
+        if select==1:
+            while True:
+                key = input('Please input the name or a licence number:')
+                if namePattern.match(key):
+                    queryName="select name, l.licence_no,addr,birthday,class,description,expiring_date from people p, drive_licence l, restriction r, driving_condition d where p.sin=l.sin AND l.licence_no=r.licence_no AND r.r_id=d.c_id AND p.name like '"+key+"'"
+                    resultSet=self.connection.fetchResult(queryName)
+                    if resultSet==[]:
+                        print('The people doesn\'t exist or he/she doesn\'t have a licence')
+                        break
+                    
+                    print('Query result')
+                    for result in resultSet:
+                        print('-'*60)
+                        print('name: %s'%result[0])
+                        print('licence number: %s'%result[1])
+                        ## unfinished
+                    break
+
+                elif idPattern.match(key):
+                    queryLicence ="select name, l.licence_no,addr,birthday,class,description,expiring_date from people p, drive_licence l, restriction r, driving_condition d where p.sin=l.sin AND l.licence_no=r.licence_no AND r.r_id=d.c_id AND l.licence_no='"+key+"'"
+                    resultSet=self.connection.fetchResult(queryLicence)
+                    if resultSet==[]:
+                        print('The licence does not exist')
+                        break
+
+                    print('Query result')
+                    for result in resultSet:
+                        print('-'*60)
+                        print('name: %s'%result[0])
+                        print('licence number: %s'%result[1])
+                        ## unfinished
+                    break
+                
+                else:
+                    print('The name/id you input is invalid, please try again:')
+
+        elif select==2: # if the user choose the search for violation records
+            while True:
+                # ask for the input type. User can choose from inputing sin or inputing licence number
+                selectInput = input('Would you like to use SIN [1] or licence number [2] to check:')
+                if selectInput == '1':
+                    inputVal = input('Please input a SIN:')
+                    sin = self.checkFormat(inputVal, 'char', 15)
+                    while not self.ifSinExist(sin):
+                        inputVal = input('SIN not valid, please try again:')
+                        sin = self.checkFormat(inputVal,'char',15)
+                            
+                    # query in the database for all violation records with this sin
+                    querySin ="select * from ticket where violator_no="+sin
+                    resultSet = self.connection.fetchResult(querySin)
+                    if resultSet==[]:
+                        print('The people does not have violation record yet.')
+                        break
+                    else:
+                        # print out the query result one by one
+                        print('Query result')
+                        for result in resultSet:
+                            print('-'*60)
+                            print('ticket number: %s'%result[0])
+                            print('violator number: %s'%result[1])
+                            # unfinished
+                        break
+
+                elif selectInput == '2':
+                    inputVal = input('Please input a licence number:')
+                    licenceNo = self.checkFormat(inputVal, 'char', 15)
+                    while not self.ifLicenceNoExist(licenceNo):
+                        inputVal = input('Licence number not valid, please try again:')
+                        licenceNo = self.checkFormat(inputVal,'char',15)
+                        
+                    # query in the database for the sin corresponding to this licenceNo
+                    queryLicence = "select sin from drive_licence where licence_no="+licenceNo
+                    result = self.connection.fetchResult(queryLicence) #result should be a singleton
+
+                    # query in the database with the sin acquired before
+                    querySin ="select * from ticket where violator_no='"+result[0][0]+"'"
+                    resultSet = self.connection.fetchResult(querySin)
+                    if resultSet==[]:
+                        print('The people does not have violation record yet.')
+                        break
+                    else:
+                        print('Query result')
+                        # print out the query result one by one
+                        for result in resultSet:
+                            print('-'*60)
+                            print('ticket number: %s'%result[0])
+                            print('violator number: %s'%result[1])
+                            # unfinished
+                        break
+
+                    break
+                else:
+                    print('Input invalid. You should choose by entering [1] or [2]')
+                    continue
+
+        elif select==3: # if user chooses to browse the vehicle history
+            inputVal = input('Please input a serial number:')
+            serialNo = self.checkFormat(inputVal,'char',15)
+            while not self.ifSerialNumExist(serialNo):
+                inputVal = input('Serial number not valid, please try again:')
+                serialNo = self.checkFormat(inputVal,'char',15)
+                
+            query = "select count(transaction_id),avg(price) from auto_sale where vehicle_id="+serialNo
+            result = self.connection.fetchResult(query)
+            
+            print('Query result')
+            print('-'*60)
+            if result[0][0]=='': #if the vehicle haven't been transacted before
+                print('The vehicle does not have transaction record before')
+            else:
+                print('Number of transactions: %s'%result[0][0])
+                print('Average price: %s'%result[0][1])
+            
+            query = "select count(ticket_no) from ticket where vehicle_id="+serialNo 
+            result = self.connection.fetchResult(query)
+            if result[0][0]=='': #if the vehicle doesn't have violation record before
+                print('The vehicle does not have violation record before')
+            else:
+                print('Number of tickets: %s'%result[0][0]) 
+            print('-'*60)
+
+        
+
+        
 if __name__ == '__main__':
     app = application()
     app.main()
@@ -587,5 +749,5 @@ if __name__ == '__main__':
 ### TODO:
 ### 1. refactor
 ### 2. transaction-->commit
-
-
+### 3. fix checkReference
+### 4. check if generate id and generate date
