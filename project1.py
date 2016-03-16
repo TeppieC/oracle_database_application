@@ -35,6 +35,9 @@ class Connection:
 	# The URL we are connnecting to
         conString=''+user+'/' + pw +'@gwynne.cs.ualberta.ca:1521/CRS'
         self.connection = cx_Oracle.connect(conString)
+    
+    def doCommit(self):
+        self.connection.commit()
 
     def disconnect(self):
         self.connection.close()
@@ -53,12 +56,12 @@ class Connection:
         execute the given query to the database and 
         return the result in a list
         '''
-        print(query)#################################
+        #DEBUG: print(query)
         curs = self.connection.cursor()
         curs.execute(query)
         rows = curs.fetchall() 
         curs.close()
-        print(rows)###################################
+        #DEBUG: print(rows)
         return rows
 
     def createInsertion(self, table, *args):
@@ -105,12 +108,15 @@ class Connection:
         Return: Bool
         '''
         query = self.createQuery(keyAttr, table, keyAttr+'='+value)
-        if not self.fetchResult(query)==[]:
-            return True
-        else:
+        try:
+            if not self.fetchResult(query)==[]:
+                return True
+            else:
+                print('Your input is not correct. We cannot find the information in our database')
+                return False
+        except cx_Oracle.DatabaseError:
+            print('Your input is not correct. We cannot find the information in our database')
             return False
-        #except cx_Oracle.DatabaseError:
-        #    return False
 
     def createCursor(self):
         return self.connection.cursor()
@@ -138,7 +144,8 @@ class application:
                 '3': 3,
                 '4': 4,
                 '5': 5,
-                'Q': 'Q'
+                'Q':'Q',
+                'q':'Q'
             }.get(inputStr,0)
             if selection==0:
                 print('Your input is not valid, please try again')
@@ -422,15 +429,25 @@ class application:
         return
 
     def isGenderCorrect(self, gender):
+        '''
+        check if the gender input is correct
+        '''
         return gender=='m' or gender=='f' or gender=='M' or gender=='F'
 
     def isPrimaryOwnerCorrect(self, pri):
+        '''
+        check if the input for primary owner is correct
+        '''
         return pri=='n' or pri=='y' or pri=='Y' or pri=='N'
 
     def ifTransactionIdExist(self, tId):
         return self.connection.ifExist('auto_sale','transaction_id',tId)
 
     def ifTicketNoExist(self, tNo):
+        '''
+        check if the ticket number input has already
+        existed in the database
+        '''
         return self.connection.ifExist('ticket','ticket_no', tNo)
 
     def ifSerialNumExist(self, serialNo):
@@ -443,6 +460,9 @@ class application:
         return self.connection.ifExist('drive_licence','licence_no', LicenceNo)
 
     def getCurrentDate(self):
+        '''
+        get the current date from the system
+        '''
         day = time.strftime('%d')
         year = time.strftime('%Y')
         mon = time.strftime('%m')
@@ -471,7 +491,7 @@ class application:
         # query --> "SELECT is_primary_owner FROM owner WHERE owner_id='9000001' AND vehicle_id='20034'"
         query = "SELECT is_primary_owner FROM owner WHERE owner_id="+sin+" AND vehicle_id="+serialNo
         check = self.connection.fetchResult(query)[0]
-        #print(check[0])
+
         if not check:# if no result matched
             # then the car is not owned by the people
             return 2
@@ -617,7 +637,6 @@ class application:
         insertion = self.connection.createInsertion('ticket', tNo,\
                                                         violatorId, vId, officerId,\
                                                         vType, vDate, place, descr)
-        print(insertion)################################################################3
         self.connection.executeStmt(insertion)
 
         print('Succeed')
@@ -632,26 +651,35 @@ class application:
                 print('Please choose between [y] and [n]')
 
     def hasLicence(self,sin):
+        '''
+        check if a people with the given sin has a drive licence
+        '''
         query = 'SELECT licence_no from drive_licence WHERE sin='+sin
         if self.connection.fetchResult(query)==[]:
             return False
         else:
             return True
-
-    def generateLicenceNo(self):
+   
+    def ifLicenceNoExist(self, LicenceNo):
         '''
-        Generate and return a new licence number by querying in the database.
-
-        Precondition: licence_no in the database is a CHAR of number digits
+        check if a licence number has already existed
         '''
-        query = 'SELECT licence_no FROM drive_licence WHERE licence_no>=ALL(SELECT licence_no FROM drive_licence)'
-        resultSet = self.connection.fetchResult(query)
-        if resultSet==[]:
-            return '1'
-        else:
-            return "'"+str(int(resultSet[0][0])+1)+"'"
+        return self.connection.ifExist('drive_licence','licence_no', LicenceNo)
+
+    def ifCidExist(self,cId):
+        '''
+        check if a driving condition id has already existed
+        '''
+        return self.connection.ifExist('driving_condition','c_id',cId)
 
     def newDriverRegistration(self):
+        '''
+        The third program.
+        It will allow users to register a people
+        with a drive licence, provided that the
+        people doesn't has the licence before.
+        '''
+
         print('#'*80)
         print('Welcome the driver licence registration system.')
 
@@ -683,28 +711,20 @@ class application:
                     return 'Q' # quit
                 else:
                     print('Please choose between [y] and [n]')
-            
-        licence_no = self.generateLicenceNo()
-        print('The licence number is: %s'%licence_no)
+        
+        licence_no = input('Please enter the licence number: ')
+        while self.ifLicenceNoExist(licence_no):
+            print('Licence number already exist')
+            licenceNo = input('Please re-input: ')
 
         inputVal = input('Please enter class of the licence: ')
-        d_class = self.checkFormat(inputVal, 'char', 10)
-        
-        # generate the issuing date by using the current date
-        #issuing_date = "'"+self.getCurrentDate()+"'"
-        #print('Issuing date is at: %s'%issuing_date)
-        
+        licence_class = self.checkFormat(inputVal, 'char', 10)
+
+        issuing_date = self.getCurrentDate()
+        print('The issuing date is: %s'%issuing_date)
+                
         inputVal = input('Please enter expiring date: ')
         expiring_date = self.checkFormat(inputVal, 'date', 1)
-
-        inputVal = input('Please enter issuing date: ')
-        issuing_date = self.checkFormat(inputVal, 'date', 1)
-
-        insertion = self.connection.createInsertion('drive_licence',licence_no,sin,d_class,\
-                                                    None, "'"+issuing_date+"'", "'"+expiring_date+"'")
-        print(insertion)
-        self.connection.executeStmt(insertion)
-
 
         cursor = self.connection.createCursor()
         while True:
@@ -717,54 +737,27 @@ class application:
                 photo  = image.read()
             break
         
-        insert = """insert into drive_licence (licence_no,photo)
-        values (:licence_no,:photo)"""
-        cursor.execute(insert,{'licence_no':licence_no,'photo':photo})
-        cursor.commit()
-        cursor.close()
-        image.close()
-
-        '''
-        photoName = input('Please enter the name of the photo file: ')
-        while True:
-            try:
-                photo = open(photoName, 'rb')
-                photoBlob = photo.read()
-                break
-            except IOError:
-                print('No such file existed')
-                photoName = input('Please re-input the name: ')
-
-        insertion = self.connection.createInsertion('drive_licence',licenceNo,sin,lClass,\
-                                                    None, issueDate, expireDate)
-        print(insertion)
-        self.connection.executeStmt(insertion)
-
-        cursor = self.connection.createCursor()
-        cursor.setinputsizes(photoBlob=cx_Oracle.BLOB)
-        
         insert = """insert into drive_licence (licence_no,sin,class,photo,issuing_date,expiring_date) values (:licence_no,:sin,:class,:photo,:issuing_date,:expiring_date)"""
-        cursor.execute(insert, {'licence_no':licenceNo,'sin':sin,'class':lClass,'photo':photoBlob,'issuing_date':issueDate[1:-1],'expiring_date':expireDate[1:-1]})
-        self.connection.commit()
-        
-        #insertion = self.connection.createInsertion('drive_licence', licenceNo, lClass,\
-        ##                                           photoBlob, issueDate, expireDate)
-        #print(insertion)
-        #self.connection.executeStmt(insertion)
-        photo.close()
+        cursor.execute(insert, {'licence_no':licence_no,'sin':sin[1:-1],'class':licence_class,'photo':photo,'issuing_date':issuing_date,'expiring_date':expiring_date})
+        self.connection.doCommit()
+        image.close()
         cursor.close()
-'''
+
         #create a new entry in restriction for this new licence
-        inputVal = input('Please enter the driving condition: ')
-        print('The driving condition choices are:')
-        print('401. Normal')
-        print('402. Restricted')
-        print('403. Forbidden')
-        driveCondition = self.checkReference('driving_condition','c_id',inputVal, 'integer', 1)
-        insertion = self.connection.createInsertion('restriction',licenceNo, driveCondition)#############
-        print(insertion)
+        c_id = input('Please enter the id of the driving condition: ')
+        while self.ifCidExist(c_id):
+            print('driving condition id already exist')
+            c_id = input('Please re-input: ')
+
+        inputVal = input('Please enter the driving condition description: ')
+        driveCondition = self.checkFormat(inputVal, 'char', 1024)
+
+        insertion = self.connection.createInsertion('driving_condition',c_id, driveCondition)
         self.connection.executeStmt(insertion)
-        
+
+        insertion = self.connection.createInsertion('restriction',licence_no, c_id)
+        self.connection.executeStmt(insertion)
+       
         print('Succeed')
 
         while True:
@@ -778,8 +771,14 @@ class application:
 
 
     def searchEngine(self):
-        namePattern = re.compile('[A-Z][a-z]{0,40}')
-        idPattern = re.compile('\w{15}')
+        '''
+        The fifth program.
+        It allows users the search in the database
+        for a specific infomation.
+        '''
+        
+        namePattern = re.compile('[A-Z][a-z]{0,40}',re.IGNORECASE)
+        idPattern = re.compile('\w{15}', re.IGNORECASE)
         select = 0
         print('#'*80)
         print('Welcome to violation record system.\nPlease select what you want to search for:')
@@ -790,7 +789,7 @@ class application:
             print('[Q]. Back to main menu')
             print('#'*80)
             inputStr = input('Please select the index: ')
-            select = {'1': 1 , '2': 2 , '3': 3 , 'Q': 'Q'}.get(inputStr,0)
+            select = {'1': 1 , '2': 2 , '3': 3 , 'Q': 'Q','q':'Q'}.get(inputStr,0)
             if not select:
                 select = 0
                 print('Your input is invalid, please try again:')
@@ -804,10 +803,10 @@ class application:
             while True:
                 key = input('Please input the name or a licence number:')
                 if namePattern.match(key):
-                    queryName="select name, l.licence_no,addr,birthday,class,description,expiring_date from people p, drive_licence l, restriction r, driving_condition d where p.sin=l.sin AND l.licence_no=r.licence_no AND r.r_id=d.c_id AND p.name like '%"+key+"%'"
+                    queryName="select name, l.licence_no,addr,birthday,class,description,expiring_date from people p, drive_licence l, restriction r, driving_condition d where p.sin=l.sin AND l.licence_no=r.licence_no AND r.r_id=d.c_id AND lower(p.name) like '%"+key.lower()+"%'"
                     resultSet=self.connection.fetchResult(queryName)
                     if resultSet==[]:
-                        query="select sin from people where name like '%"+key+"%'"
+                        query="select sin from people where lower(name) like '%"+key.lower()+"%'"
                         resultSet = self.connection.fetchResult(query)
                         if resultSet==[]:
                             print('The people doesn\'t exist')
@@ -828,7 +827,7 @@ class application:
                     break
 
                 elif idPattern.match(key):
-                    queryLicence ="select name, l.licence_no,addr,birthday,class,description,expiring_date from people p, drive_licence l, restriction r, driving_condition d where p.sin=l.sin AND l.licence_no=r.licence_no AND r.r_id=d.c_id AND l.licence_no='"+key+"'"
+                    queryLicence ="select name, l.licence_no,addr,birthday,class,description,expiring_date from people p, drive_licence l, restriction r, driving_condition d where p.sin=l.sin AND l.licence_no=r.licence_no AND r.r_id=d.c_id AND lower(l.licence_no)='"+key.lower()+"'"
                     resultSet=self.connection.fetchResult(queryLicence)
                     if resultSet==[]:
                         print('The licence does not exist')
@@ -863,7 +862,7 @@ class application:
                         sin = self.checkFormat(inputVal,'char',15)
                             
                     # query in the database for all violation records with this sin
-                    querySin ="select * from ticket where violator_no="+sin
+                    querySin ="select * from ticket where lower(violator_no)="+sin.lower()
                     resultSet = self.connection.fetchResult(querySin)
                     if resultSet==[]:
                         print('The people does not have violation record yet.')
@@ -875,7 +874,15 @@ class application:
                             print('-'*60)
                             print('ticket number: %s'%result[0])
                             print('violator number: %s'%result[1])
-                            # unfinished
+                            print('vehicle id: %s'%result[2])
+                            print('officer number: %s'%result[3])
+                            print('ticket type: %s'%result[4])
+                            queryFine = "select fine from ticket_type where vtype='"+result[4]+"'"
+                            fine = self.connection.fetchResult(queryFine)[0][0]
+                            print('fine: %s'%str(fine))
+                            print('date: %s'%result[5])
+                            print('place: %s'%result[6])
+                            print('description: %s'%result[7])
                         break
 
                 elif selectInput == '2':
@@ -886,11 +893,11 @@ class application:
                         licenceNo = self.checkFormat(inputVal,'char',15)
                         
                     # query in the database for the sin corresponding to this licenceNo
-                    queryLicence = "select sin from drive_licence where licence_no="+licenceNo
+                    queryLicence = "select sin from drive_licence where lower(licence_no)="+licenceNo.lower()
                     result = self.connection.fetchResult(queryLicence) #result should be a singleton
 
                     # query in the database with the sin acquired before
-                    querySin ="select * from ticket where violator_no='"+result[0][0]+"'"
+                    querySin ="select * from ticket where lower(violator_no)='"+result[0][0].lower()+"'"
                     resultSet = self.connection.fetchResult(querySin)
                     if resultSet==[]:
                         print('The people does not have violation record yet.')
@@ -902,7 +909,15 @@ class application:
                             print('-'*60)
                             print('ticket number: %s'%result[0])
                             print('violator number: %s'%result[1])
-                            # unfinished
+                            print('vehicle id: %s'%result[2])
+                            print('officer number: %s'%result[3])
+                            print('ticket type: %s'%result[4])
+                            queryFine = "select fine from ticket_type where vtype='"+result[4]+"'"
+                            fine = self.connection.fetchResult(queryFine)[0][0]
+                            print('fine: %s'%str(fine))
+                            print('date: %s'%result[5])
+                            print('place: %s'%result[6])
+                            print('description: %s'%result[7])
                         break
 
                     break
@@ -917,7 +932,7 @@ class application:
                 inputVal = input('Serial number not valid, please try again:')
                 serialNo = self.checkFormat(inputVal,'char',15)
                 
-            query = "select count(transaction_id),avg(price) from auto_sale where vehicle_id="+serialNo
+            query = "select count(transaction_id),avg(price) from auto_sale where lower(vehicle_id)="+serialNo.lower()
             result = self.connection.fetchResult(query)
             
             print('Query result')
@@ -928,7 +943,7 @@ class application:
                 print('Number of transactions: %s'%result[0][0])
                 print('Average price: %s'%result[0][1])
             
-            query = "select count(ticket_no) from ticket where vehicle_id="+serialNo 
+            query = "select count(ticket_no) from ticket where lower(vehicle_id)="+serialNo.lower() 
             result = self.connection.fetchResult(query)
             if result[0][0]=='': #if the vehicle doesn't have violation record before
                 print('The vehicle does not have violation record before')
@@ -952,8 +967,12 @@ if __name__ == '__main__':
 
 
 ### TODO:
-### 1. refactor
-### 2. transaction-->commit
-### 3. fix checkReference
-### 4. check if generate id and generate date
-### 5. modify work flow!!!!!
+### 1. check for case insensitive comparisons
+
+### DEMO NOTE:
+### 1. We automatically generate the licence issuing date and ticket date from the system
+### 2. We automatically generate the new ticket_no and new transaction_id from the initial database.
+###    Since they are INTEGER, if there is no record in the database, the new id will start with 1.
+### 3. For the search engine, we suppose that no one would have a name with pure numbers.
+###    Therefore, if the user input numbers in the search engine--personal information, we will treat it as a licence number.
+### 4. We are glad to make any changes to that.
