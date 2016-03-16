@@ -67,7 +67,10 @@ class Connection:
         '''
         insertion = 'INSERT INTO %s VALUES (' % table
         for i in range(0, len(args)-1):
-            insertion += args[i]
+            if args[i]!=None:
+                insertion += args[i]
+            else:
+                insertion += 'NULL'
             insertion += ', '
 
         insertion+= args[-1]
@@ -109,6 +112,8 @@ class Connection:
         #except cx_Oracle.DatabaseError:
         #    return False
 
+    def createCursor(self):
+        return self.connection.cursor()
 
 class application:
     def __init__(self):
@@ -116,16 +121,17 @@ class application:
 
     def selectMenu(self):
         selection = 0
-        while not selection:
+        print('#'*80)
+        print('Please select from the following programs: ')
+        print('1. New Vehicle Registration')
+        print('2. Auto Transaction')
+        print('3. Driver Licence Registration')
+        print('4. Violation Record')
+        print('5. Search Engine')
+        print('[Q] Quit')
+        while not selection:            
             print('#'*80)
-            print('Please select from the following programs: ')
-            print('1. New Vehicle Registration')
-            print('2. Auto Transaction')
-            print('3. Driver Licence Registration')
-            print('4. Violation Record')
-            print('5. Search Engine')
-            print('[Q] Quit')
-            inputStr = input('Your choice: ')
+            inputStr = input('Please select the index: ')
             selection = {
                 '1': 1,
                 '2': 2,
@@ -134,7 +140,6 @@ class application:
                 '5': 5,
                 'Q': 'Q'
             }.get(inputStr,0)
-            #print('Your choice is '+inputStr)
             if selection==0:
                 print('Your input is not valid, please try again')
         return selection
@@ -154,16 +159,15 @@ class application:
             elif selection==2:
                 selection = self.autoTransaction()
             elif selection==3:
-                selection = self.driverLicenceRegistration()
+                selection = self.newDriverRegistration()
             elif selection==4:
                 selection = self.violationRecord()
             elif selection==5:
                 selection = self.searchEngine()
             elif selection=='Q':
                 self.end()
-        self.end() #can remove?...
+        self.end()
         
-
     def checkFormat(self, value, inputType, misc):
         '''
         helper function to validate the input
@@ -302,7 +306,7 @@ class application:
             serialNo = self.checkFormat(inputVal, 'char', 15)
 
         # acquire for sin of the owner
-        inputVal = input('Please enter SIN of the owner: ')
+        inputVal = input('Please enter SIN of the primary owner: ')
         # if the sin is not in the database,
         # let the user choose between re-input and register new people
         sin = self.checkFormat(inputVal, 'char', 15)# should accept letters
@@ -339,12 +343,40 @@ class application:
         insertion = self.connection.createInsertion('owner', sin, serialNo, "'y'")
         self.connection.executeStmt(insertion)
 
+        choice=''
+        while not (choice=='y' or choice=='n'):
+            choice=input('Do you want to register this vehicle with a secondary owner?[y/n]: ')
+
+        if choice=='y':
+            # acquire for sin of the secondary owner
+            inputVal = input('Please enter SIN of the secondary owner: ')
+            # if the sin is not in the database,
+            # let the user choose between re-input and register new people
+            sin = self.checkFormat(inputVal, 'char', 15)# should accept letters
+            while not self.ifSinExist(sin):
+                print('Sin NOT VALID.')
+                check = 0
+                while check!='1' and check!='2':
+                    check = input('Re-input sin [1] OR register this person to database [2]? ').strip()
+                    if check=='1':
+                        inputVal = input('Please enter SIN of the owner: ')
+                        sin = self.checkFormat(inputVal, 'char', 15)
+                    else:
+                        self.newPeopleRegistration(sin) 
+
+            insertion = self.connection.createInsertion('owner', sin, serialNo, "'n'")
+            self.connection.executeStmt(insertion)
+
         print('Succeed')
 
-        if input('Re-select the program?[y/n]')=='y':
-            return 0 # select other programs
-        else:
-            return 'Q' # quit
+        while True:
+            choice = input('Re-select the program?[y/n]')
+            if choice=='y' or choice=='Y':
+                return 0 # select other programs
+            elif choice=='n' or choice=='N':
+                return 'Q' # quit
+            else:
+                print('Please choose between [y] and [n]')
 
 
     def newPeopleRegistration(self, sin):
@@ -409,14 +441,6 @@ class application:
 
     def ifLicenceNoExist(self, LicenceNo):
         return self.connection.ifExist('drive_licence','licence_no', LicenceNo)
-
-    def ifPossessLicence(self, sin):
-        '''
-        Determine if the people has already possessed
-        with a licence
-        '''
-        return self.connection.ifExist('drive_licence', 'sin', sin)
-
 
     def getCurrentDate(self):
         day = time.strftime('%d')
@@ -485,6 +509,7 @@ class application:
             #vId --> "'20034'"
 
             # check if the vehicle is primarily owned by the people
+            # a vehicle could ONLY be sold by its primary owner
             check = self.isPrimaryOwner(sId, vId)
         
             if check==0:
@@ -496,20 +521,24 @@ class application:
                 print('The people doesn\'t own the vehicle at all. Please try another one')
                 continue
 
+        # get the buyer id
+        # if the buyer doesn't exist in the database, prompt the choices
         inputVal = input('Please enter SIN of the buyer: ')
-        bId = self.checkReference('people', 'sin', "'"+inputVal+"'", 'char', 15)
-        
+        bId = self.checkFormat(inputVal, 'char', 15)
+        while not self.ifSinExist(bId):
+            print('Sin NOT VALID.')
+            check = 0
+            while check!='1' and check!='2':
+                check = input('Re-input buyer\'s sin [1] OR register this person to database [2]? ').strip()
+            if check=='1':
+                inputVal = input('Please enter SIN of the owner: ')
+                bId = self.checkFormat(inputVal, 'char', 15)
+            else:
+                self.newPeopleRegistration(bId) 
+
         #generate the transaction id
         tId = self.generateTransactionId()
         print('transaction id is: %s'%tId)
-
-        #input the transaction id
-        #tId = self.checkFormat(input('Please enter the transaction ID: '), 'integer',1)
-        # if the transaction id is already existed, ask for re-input
-        #while self.ifTransactionIdExist(tId):
-        #    print('Transaction ID already exist.')
-        #    inputVal = input('Please enter another transaction ID: ')
-        #    tId = self.checkFormat(inputVal, 'integer', 1)
 
         #get the date
         sDate = self.getCurrentDate()
@@ -523,7 +552,8 @@ class application:
                                                     "'"+sDate+"'", price)
         self.connection.executeStmt(insertion)
 
-        deletion = 'DELETE FROM owner WHERE owner_id=%s AND vehicle_id=%s'%(sId,vId)
+        # delete all previous owners of this vehicle
+        deletion = 'DELETE FROM owner WHERE vehicle_id=%s'%vId
         self.connection.executeStmt(deletion)
 
         ## set the buyer to the only primary owner for now
@@ -532,21 +562,35 @@ class application:
 
         print('Succeed')
 
-        if input('Re-select the program?[y/n]')=='y':
-            return 0 # select other programs
+        while True:
+            choice = input('Re-select the program?[y/n]')
+            if choice=='y' or choice=='Y':
+                return 0 # select other programs
+            elif choice=='n' or choice=='N':
+                return 'Q' # quit
+            else:
+                print('Please choose between [y] and [n]')
+
+
+    def generateTicketNo(self):
+        '''
+        Generate and return the ticket number by querying in the database.
+        '''
+        query = 'SELECT ticket_no FROM ticket WHERE ticket_no>=ALL(SELECT ticket_no FROM ticket)'
+        resultSet = self.connection.fetchResult(query)
+        print(resultSet)
+        if resultSet==[]:
+            return '1'
         else:
-            return 'Q' # quit
+            return str(resultSet[0][0]+1)
 
     def violationRecord(self):
         print('#'*80)
         print('Welcome to violation record system.')
 
-        # input the ticket number
-        tNo = self.checkFormat(input('Please enter the ticket number: '), 'integer',1)
-        while self.ifTicketNoExist(tNo):
-            print('Ticket number already exist.')
-            inputVal = input('Please enter another ticket number: ')
-            tNo = self.checkFormat(inputVal, 'integer', 1)
+        #generate the ticket no
+        tNo = self.generateTicketNo()
+        print('ticket number is: %s'%tNo)
 
         inputVal = input('Please enter SIN of the officer: ')
         officerId = self.checkReference('people', 'sin', "'"+inputVal+"'", 'char', 15)
@@ -573,17 +617,44 @@ class application:
         insertion = self.connection.createInsertion('ticket', tNo,\
                                                         violatorId, vId, officerId,\
                                                         vType, vDate, place, descr)
-        print(insertion)
+        print(insertion)################################################################3
         self.connection.executeStmt(insertion)
 
         print('Succeed')
 
-        if input('Re-select the program?[y/n]')=='y':
-            return 0 # select other programs
+        while True:
+            choice = input('Re-select the program?[y/n]')
+            if choice=='y' or choice=='Y':
+                return 0 # select other programs
+            elif choice=='n' or choice=='N':
+                return 'Q' # quit
+            else:
+                print('Please choose between [y] and [n]')
+
+    def hasLicence(self,sin):
+        query = 'SELECT licence_no from drive_licence WHERE sin='+sin
+        if self.connection.fetchResult(query)==[]:
+            return False
         else:
-            return 'Q' # quit
-        
+            return True
+
+    def generateLicenceNo(self):
+        '''
+        Generate and return a new licence number by querying in the database.
+
+        Precondition: licence_no in the database is a CHAR of number digits
+        '''
+        query = 'SELECT licence_no FROM drive_licence WHERE licence_no>=ALL(SELECT licence_no FROM drive_licence)'
+        resultSet = self.connection.fetchResult(query)
+        if resultSet==[]:
+            return '1'
+        else:
+            return "'"+str(int(resultSet[0][0])+1)+"'"
+
     def newDriverRegistration(self):
+        print('#'*80)
+        print('Welcome the driver licence registration system.')
+
         # acquire for sin of the new driver
         inputVal = input('Please enter SIN of the new driver: ')
         # if the sin is not in the database,
@@ -597,44 +668,114 @@ class application:
             if check=='1':
                 inputVal = input('Please enter SIN of the new driver: ')
                 sin = self.checkFormat(inputVal, 'char', 15)
-            else:
+            elif check=='2':
                 self.newPeopleRegistration(sin) 
-                        
-        licenceNo = input('Please enter the licence number: ')
-        while ifLicenceExist(licenceNo):
-            print('Licence number already exist')
-            licenceNo = input('Please re-input: ')
+            else:
+                print('Please choose between:')
+
+        if self.hasLicence(sin):
+            print('This people already has a drive licence')
+            while True:
+                choice = input('Re-select the program?[y/n]')
+                if choice=='y' or choice=='Y':
+                    return 0 # select other programs
+                elif choice=='n' or choice=='N':
+                    return 'Q' # quit
+                else:
+                    print('Please choose between [y] and [n]')
+            
+        licence_no = self.generateLicenceNo()
+        print('The licence number is: %s'%licence_no)
 
         inputVal = input('Please enter class of the licence: ')
-        class = self.checkFormat(inputVal, 'char', 10)
+        d_class = self.checkFormat(inputVal, 'char', 10)
         
-        inputVal = input('Please enter issuing date: ')
-        issueDate = self.checkFormat(inputVal, 'date', 1)
+        # generate the issuing date by using the current date
+        #issuing_date = "'"+self.getCurrentDate()+"'"
+        #print('Issuing date is at: %s'%issuing_date)
         
         inputVal = input('Please enter expiring date: ')
-        expireDate = self.checkFormat(inputVal, 'date', 1)
+        expiring_date = self.checkFormat(inputVal, 'date', 1)
 
-        inputVal = input('Please enter the driving condition')
-        driveCondition = self.checkFormat(inputVal, 'char', 1024)
-            
+        inputVal = input('Please enter issuing date: ')
+        issuing_date = self.checkFormat(inputVal, 'date', 1)
+
+        insertion = self.connection.createInsertion('drive_licence',licence_no,sin,d_class,\
+                                                    None, "'"+issuing_date+"'", "'"+expiring_date+"'")
+        print(insertion)
+        self.connection.executeStmt(insertion)
+
+
+        cursor = self.connection.createCursor()
+        while True:
+            fileName = input('Please enter the name of the photo file: ')
+            try:
+                image  = open(fileName,'rb')
+            except IOError:
+                print('No such file existed')
+            else:
+                photo  = image.read()
+            break
+        
+        insert = """insert into drive_licence (licence_no,photo)
+        values (:licence_no,:photo)"""
+        cursor.execute(insert,{'licence_no':licence_no,'photo':photo})
+        cursor.commit()
+        cursor.close()
+        image.close()
+
+        '''
         photoName = input('Please enter the name of the photo file: ')
         while True:
             try:
                 photo = open(photoName, 'rb')
                 photoBlob = photo.read()
                 break
-            except IOError e:
+            except IOError:
                 print('No such file existed')
                 photoName = input('Please re-input the name: ')
 
-        cursor = self.connection.cursor()
-	#cursor.setinputsizes(photoBlob=cx_Oracle.BLOB)
-        insert = """insert into drive_licence (licence_no,sin,class,photo,issuing_date,expiring_date)
-    values (:licence_no,:sin,:class,:photo,:issuing_date,:expiring_date)"""
-        cursor.execute(insert, {'licence_no':licenceNo,'sin':sin,'class':class,'photo':photoBlob,'issuing_date':issueDate,'expiring_date':expireDate})
+        insertion = self.connection.createInsertion('drive_licence',licenceNo,sin,lClass,\
+                                                    None, issueDate, expireDate)
+        print(insertion)
+        self.connection.executeStmt(insertion)
+
+        cursor = self.connection.createCursor()
+        cursor.setinputsizes(photoBlob=cx_Oracle.BLOB)
+        
+        insert = """insert into drive_licence (licence_no,sin,class,photo,issuing_date,expiring_date) values (:licence_no,:sin,:class,:photo,:issuing_date,:expiring_date)"""
+        cursor.execute(insert, {'licence_no':licenceNo,'sin':sin,'class':lClass,'photo':photoBlob,'issuing_date':issueDate[1:-1],'expiring_date':expireDate[1:-1]})
         self.connection.commit()
+        
+        #insertion = self.connection.createInsertion('drive_licence', licenceNo, lClass,\
+        ##                                           photoBlob, issueDate, expireDate)
+        #print(insertion)
+        #self.connection.executeStmt(insertion)
         photo.close()
-        # unfinished
+        cursor.close()
+'''
+        #create a new entry in restriction for this new licence
+        inputVal = input('Please enter the driving condition: ')
+        print('The driving condition choices are:')
+        print('401. Normal')
+        print('402. Restricted')
+        print('403. Forbidden')
+        driveCondition = self.checkReference('driving_condition','c_id',inputVal, 'integer', 1)
+        insertion = self.connection.createInsertion('restriction',licenceNo, driveCondition)#############
+        print(insertion)
+        self.connection.executeStmt(insertion)
+        
+        print('Succeed')
+
+        while True:
+            choice = input('Re-select the program?[y/n]')
+            if choice=='y' or choice=='Y':
+                return 0 # select other programs
+            elif choice=='n' or choice=='N':
+                return 'Q' # quit
+            else:
+                print('Please choose between [y] and [n]')
+
 
     def searchEngine(self):
         namePattern = re.compile('[A-Z][a-z]{0,40}')
@@ -647,12 +788,15 @@ class application:
             print('[2]. Search for violation record')
             print('[3]. Search for vehicle history')
             print('[Q]. Back to main menu')
-            inputStr = input('Your choice: ')
+            print('#'*80)
+            inputStr = input('Please select the index: ')
             select = {'1': 1 , '2': 2 , '3': 3 , 'Q': 'Q'}.get(inputStr,0)
             if not select:
                 select = 0
                 print('Your input is invalid, please try again:')
-        
+                print('#'*80)
+        print('#'*80)
+
         if select=='Q':
             return 0
 
@@ -660,10 +804,15 @@ class application:
             while True:
                 key = input('Please input the name or a licence number:')
                 if namePattern.match(key):
-                    queryName="select name, l.licence_no,addr,birthday,class,description,expiring_date from people p, drive_licence l, restriction r, driving_condition d where p.sin=l.sin AND l.licence_no=r.licence_no AND r.r_id=d.c_id AND p.name like '"+key+"'"
+                    queryName="select name, l.licence_no,addr,birthday,class,description,expiring_date from people p, drive_licence l, restriction r, driving_condition d where p.sin=l.sin AND l.licence_no=r.licence_no AND r.r_id=d.c_id AND p.name like '%"+key+"%'"
                     resultSet=self.connection.fetchResult(queryName)
                     if resultSet==[]:
-                        print('The people doesn\'t exist or he/she doesn\'t have a licence')
+                        query="select sin from people where name like '%"+key+"%'"
+                        resultSet = self.connection.fetchResult(query)
+                        if resultSet==[]:
+                            print('The people doesn\'t exist')
+                        else:
+                            print('He/She doesn\'t have a licence')
                         break
                     
                     print('Query result')
@@ -671,7 +820,11 @@ class application:
                         print('-'*60)
                         print('name: %s'%result[0])
                         print('licence number: %s'%result[1])
-                        ## unfinished
+                        print('address: %s'%result[2])
+                        print('birthday: %s'%result[3])
+                        print('driving class: %s'%result[4])
+                        print('driving condition: %s'%result[5])
+                        print('expiring date: %s'%result[6])
                     break
 
                 elif idPattern.match(key):
@@ -686,11 +839,17 @@ class application:
                         print('-'*60)
                         print('name: %s'%result[0])
                         print('licence number: %s'%result[1])
-                        ## unfinished
+                        print('address: %s'%result[2])
+                        print('birthday: %s'%result[3])
+                        print('driving class: %s'%result[4])
+                        print('driving condition: %s'%result[5])
+                        print('expiring date: %s'%result[6])
                     break
                 
                 else:
-                    print('The name/id you input is invalid, please try again:')
+                    print('The name/id you entered is invalid, please try again')
+                    print('You should enter either first or last name, with the first letter being capital')
+                    print('#'*80)
 
         elif select==2: # if the user choose the search for violation records
             while True:
@@ -723,7 +882,7 @@ class application:
                     inputVal = input('Please input a licence number:')
                     licenceNo = self.checkFormat(inputVal, 'char', 15)
                     while not self.ifLicenceNoExist(licenceNo):
-                        inputVal = input('Licence number not valid, please try again:')
+                        inputVal = input('Licence number is not valid, please try again:')
                         licenceNo = self.checkFormat(inputVal,'char',15)
                         
                     # query in the database for the sin corresponding to this licenceNo
@@ -777,8 +936,15 @@ class application:
                 print('Number of tickets: %s'%result[0][0]) 
             print('-'*60)
 
-        
-
+        print('#'*80)
+        while True:
+            choice = input('Re-select the program?[y/n]')
+            if choice=='y' or choice=='Y':
+                return 0 # select other programs
+            elif choice=='n' or choice=='N':
+                return 'Q' # quit
+            else:
+                print('Please choose between [y] and [n]')
         
 if __name__ == '__main__':
     app = application()
