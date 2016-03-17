@@ -788,8 +788,9 @@ class application:
         for a specific infomation.
         '''
         
-        namePattern = re.compile('[A-Z][a-z]{0,40}',re.IGNORECASE)
-        idPattern = re.compile('\w{15}', re.IGNORECASE)
+        
+        #namePattern = re.compile('[A-Z][a-z]{0,40}',re.IGNORECASE)
+        #idPattern = re.compile('\w{15}', re.IGNORECASE)
         select = 0
         print('#'*80)
         print('Welcome to violation record system.\nPlease select what you want to search for:')
