@@ -800,9 +800,15 @@ class application:
             return 0
 
         if select==1:
+            inputChoice = ''
+            inputChoice = input('Search by name? [n] or Search by licence number? [l]')
+            while not (inputChoice='n' or inputChoice='N' \
+                           or inputChoice='l' or inputChoice='L'):
+                inputChoice = input('Please select from [n] and [l]')
+          
             while True:
-                key = input('Please input the name or a licence number:')
-                if namePattern.match(key):
+                if inputChoice='n' or inputChoice='N':
+                    key = input('Please enter the name:')
                     queryName="select name, l.licence_no,addr,birthday,class,description,expiring_date from people p, drive_licence l, restriction r, driving_condition d where p.sin=l.sin AND l.licence_no=r.licence_no AND r.r_id=d.c_id AND lower(p.name) like '%"+key.lower()+"%'"
                     resultSet=self.connection.fetchResult(queryName)
                     if resultSet==[]:
@@ -826,7 +832,8 @@ class application:
                         print('expiring date: %s'%result[6])
                     break
 
-                elif idPattern.match(key):
+                elif inputChoice='l' or inputChoice='L':
+                    key = input('Please enter the licence number:')
                     queryLicence ="select name, l.licence_no,addr,birthday,class,description,expiring_date from people p, drive_licence l, restriction r, driving_condition d where p.sin=l.sin AND l.licence_no=r.licence_no AND r.r_id=d.c_id AND lower(l.licence_no)='"+key.lower()+"'"
                     resultSet=self.connection.fetchResult(queryLicence)
                     if resultSet==[]:
@@ -847,7 +854,7 @@ class application:
                 
                 else:
                     print('The name/id you entered is invalid, please try again')
-                    print('You should enter either first or last name, with the first letter being capital')
+           
                     print('#'*80)
 
         elif select==2: # if the user choose the search for violation records
@@ -973,6 +980,4 @@ if __name__ == '__main__':
 ### 1. We automatically generate the licence issuing date and ticket date from the system
 ### 2. We automatically generate the new ticket_no and new transaction_id from the initial database.
 ###    Since they are INTEGER, if there is no record in the database, the new id will start with 1.
-### 3. For the search engine, we suppose that no one would have a name with pure numbers.
-###    Therefore, if the user input numbers in the search engine--personal information, we will treat it as a licence number.
-### 4. We are glad to make any changes to that.
+### 3. We are glad to make any changes to that.
