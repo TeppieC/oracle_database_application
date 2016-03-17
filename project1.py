@@ -506,7 +506,6 @@ class application:
         '''
         query = 'SELECT transaction_id FROM auto_sale WHERE transaction_id>=ALL(SELECT transaction_id FROM auto_sale)'
         resultSet = self.connection.fetchResult(query)
-        print(resultSet)
         if resultSet==[]:
             return '1'
         else:
@@ -615,12 +614,24 @@ class application:
         inputVal = input('Please enter SIN of the officer: ')
         officerId = self.checkReference('people', 'sin', "'"+inputVal+"'", 'char', 15)
         
-        inputVal = input('Please enter SIN of the violator: ')
-        violatorId = self.checkReference('people', 'sin', "'"+inputVal+"'", 'char', 15)
-        
+        violatorCheck = ''
+        violatorCheck = input('Do you identify the violator and his sin?[y]/[n]')
+        while not (violatorCheck='y' or violatorCheck='Y' or/
+                   violatorCheck='n' or violatorCheck='N'):
+            violatorCheck = input('Please select from [y] or [n]')
+
         inputVal = input('Please enter the serial number of the vehicle: ')
         vId = self.checkReference('vehicle', 'serial_no', "'"+inputVal+"'", 'char', 15)
 
+        if violatorCheck='y' or violatorCheck='Y':
+            # if violator id is known
+            inputVal = input('Please enter SIN of the violator: ')
+            violatorId = self.checkReference('people', 'sin', "'"+inputVal+"'", 'char', 15)
+        elif violatorCheck='n' or violatorCheck='N':
+            # if violator id is unknown, select its primary owner
+            query = "SELECT owner_id FROM owner WHERE vehicle_id="+vId+" AND is_primary_owner='y'"
+            violatorId = self.connection.fetchResult(query)[0][0] #not tested yet
+        
         inputVal = input('Please enter the violation type: ')
         vType = self.checkReference('ticket_type', 'vtype', "'"+inputVal+"'", 'char', 10)
 
