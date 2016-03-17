@@ -820,14 +820,19 @@ class application:
             while True:
                 if inputChoice='n' or inputChoice='N':
                     key = input('Please enter the name:')
+                    # query for the person who meets the condition
                     queryName="select name, l.licence_no,addr,birthday,class,description,expiring_date from people p, drive_licence l, restriction r, driving_condition d where p.sin=l.sin AND l.licence_no=r.licence_no AND r.r_id=d.c_id AND lower(p.name) like '%"+key.lower()+"%'"
                     resultSet=self.connection.fetchResult(queryName)
-                    if resultSet==[]:
-                        query="select sin from people where lower(name) like '%"+key.lower()+"%'"
-                        resultSet = self.connection.fetchResult(query)
-                        if resultSet==[]:
+                    
+                    # query in the database to see if the person actually exists or not
+                    queryNameInPeople="select name,addr,birthday from people where lower(name) like '%"+key.lower()+"%'"
+                    resultSetPeople = self.connection.fetchResult(queryNameInPeople)
+                    if resultSet==[]: # if didn't find the name who meets the query condition
+                        if resultSetPeople==[]: 
+                            # if didn't find the name in the database
                             print('The people doesn\'t exist')
                         else:
+                            # if has find the name in the database, but the people doesn't have a licence
                             print('He/She doesn\'t have a licence')
                         break
                     
@@ -841,6 +846,17 @@ class application:
                         print('driving class: %s'%result[4])
                         print('driving condition: %s'%result[5])
                         print('expiring date: %s'%result[6])
+
+                    # if there are people with the same name,
+                    # but don't hold a licence
+                    # Our program will only list the available info
+                    if len(resultSet)!=len(resultSetPeople):
+                        print('There are %d people with the same name but don\'t hold a licence'%(len(resultSetPeople)-len(resultSet)))
+                        for result in resultSetPeople:
+                            print('-'*60)
+                            print('name: %s'%result[0])
+                            print('address: %s'%result[1])
+                            print('birthday: %s'%result[2])
                     break
 
                 elif inputChoice='l' or inputChoice='L':
