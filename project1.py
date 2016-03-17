@@ -112,10 +112,8 @@ class Connection:
             if not self.fetchResult(query)==[]:
                 return True
             else:
-                print('Your input is not correct. We cannot find the information in our database')
                 return False
         except cx_Oracle.DatabaseError:
-            print('Your input is not correct. We cannot find the information in our database')
             return False
 
     def createCursor(self):
@@ -616,18 +614,17 @@ class application:
         
         violatorCheck = ''
         violatorCheck = input('Do you identify the violator and his sin?[y]/[n]')
-        while not (violatorCheck='y' or violatorCheck='Y' or/
-                   violatorCheck='n' or violatorCheck='N'):
+        while not (violatorCheck=='y' or violatorCheck=='Y' or violatorCheck=='n' or violatorCheck=='N'):
             violatorCheck = input('Please select from [y] or [n]')
 
         inputVal = input('Please enter the serial number of the vehicle: ')
         vId = self.checkReference('vehicle', 'serial_no', "'"+inputVal+"'", 'char', 15)
 
-        if violatorCheck='y' or violatorCheck='Y':
+        if violatorCheck=='y' or violatorCheck=='Y':
             # if violator id is known
             inputVal = input('Please enter SIN of the violator: ')
             violatorId = self.checkReference('people', 'sin', "'"+inputVal+"'", 'char', 15)
-        elif violatorCheck='n' or violatorCheck='N':
+        elif violatorCheck=='n' or violatorCheck=='N':
             # if violator id is unknown, select its primary owner
             query = "SELECT owner_id FROM owner WHERE vehicle_id="+vId+" AND is_primary_owner='y'"
             violatorId = self.connection.fetchResult(query)[0][0] #not tested yet
@@ -682,6 +679,7 @@ class application:
         check if a driving condition id has already existed
         '''
         return self.connection.ifExist('driving_condition','c_id',cId)
+
 
     def newDriverRegistration(self):
         '''
@@ -749,25 +747,34 @@ class application:
             break
         
         insert = """insert into drive_licence (licence_no,sin,class,photo,issuing_date,expiring_date) values (:licence_no,:sin,:class,:photo,:issuing_date,:expiring_date)"""
-        cursor.execute(insert, {'licence_no':licence_no,'sin':sin[1:-1],'class':licence_class,'photo':photo,'issuing_date':issuing_date,'expiring_date':expiring_date})
+        cursor.execute(insert, {'licence_no':licence_no,'sin':sin[1:-1],'class':licence_class[1:-1],'photo':photo,'issuing_date':issuing_date,'expiring_date':expiring_date})
         self.connection.doCommit()
         image.close()
         cursor.close()
 
-        #create a new entry in restriction for this new licence
-        c_id = input('Please enter the id of the driving condition: ')
-        while self.ifCidExist(c_id):
-            print('driving condition id already exist')
-            c_id = input('Please re-input: ')
+        inputChoice = input('Do you want to input a new driving condition?[y]/[n]')
+        while not (inputChoice=='n' or inputChoice=='N' or inputChoice=='Y' or inputChoice=='y'):
+            inputChoice = input('Please select from [y] and []')
 
-        inputVal = input('Please enter the driving condition description: ')
-        driveCondition = self.checkFormat(inputVal, 'char', 1024)
+        if inputChoice=='y' or inputChoice=='Y':
+            #create a new entry in restriction for this new licence
+            inputVal = input('Please enter the id of the driving condition: ')
+            c_id = self.checkFormat(inputVal,'integer',1)
 
-        insertion = self.connection.createInsertion('driving_condition',c_id, driveCondition)
-        self.connection.executeStmt(insertion)
+            if self.ifCidExist(c_id):
+                insertion = self.connection.createInsertion('restriction',licence_no, c_id)
+                self.connection.executeStmt(insertion)
+            else:
+                print('driving condition id not found.')
+                print('Creating a new driving condition...')
+                inputVal = input('Please enter the driving condition description: ')
+                driveCondition = self.checkFormat(inputVal, 'char', 1024)
 
-        insertion = self.connection.createInsertion('restriction',licence_no, c_id)
-        self.connection.executeStmt(insertion)
+                insertion = self.connection.createInsertion('driving_condition',c_id, driveCondition)
+                self.connection.executeStmt(insertion)
+
+                insertion = self.connection.createInsertion('restriction',licence_no, c_id)
+                self.connection.executeStmt(insertion)
        
         print('Succeed')
 
@@ -814,20 +821,25 @@ class application:
         if select==1:
             inputChoice = ''
             inputChoice = input('Search by name? [n] or Search by licence number? [l]')
-            while not (inputChoice='n' or inputChoice='N' \
-                           or inputChoice='l' or inputChoice='L'):
+            while not (inputChoice=='n' or inputChoice=='N' or inputChoice=='l' or inputChoice=='L'):
                 inputChoice = input('Please select from [n] and [l]')
           
             while True:
-                if inputChoice='n' or inputChoice='N':
+                if inputChoice=='n' or inputChoice=='N':
                     key = input('Please enter the name:')
-                    # query for the person who meets the condition
-                    queryName="select name, l.licence_no,addr,birthday,class,description,expiring_date from people p, drive_licence l, restriction r, driving_condition d where p.sin=l.sin AND l.licence_no=r.licence_no AND r.r_id=d.c_id AND lower(p.name) like '%"+key.lower()+"%'"
+                    # query for the person with the given name who hold a licence, also with a driving condition
+                    queryName="select p.sin,name, l.licence_no,addr,birthday,class,description,expiring_date from people p, drive_licence l LEFT JOIN restriction r ON l.licence_no=r.licence_no LEFT JOIN driving_condition d ON r.r_id=d.c_id where p.sin=l.sin AND lower(p.name) like '%"+key.lower()+"%'"
                     resultSet=self.connection.fetchResult(queryName)
                     
+                    # query for all people with the given name who hold a licence, w/o driving condition
+                    queryNameInPeopleWithLicence="select p.sin,name,addr,birthday from people p, drive_licence l where p.sin=l.sin AND lower(p.name) like '%"+key.lower()+"%'"
+                    resultSetPeopleWithLicence=self.connection.fetchResult(queryNameInPeopleWithLicence)
+                    
                     # query in the database to see if the person actually exists or not
-                    queryNameInPeople="select name,addr,birthday from people where lower(name) like '%"+key.lower()+"%'"
+                    # query for all people with the given name, w/o licence
+                    queryNameInPeople="select sin,name,addr,birthday from people where lower(name) like '%"+key.lower()+"%'"
                     resultSetPeople = self.connection.fetchResult(queryNameInPeople)
+
                     if resultSet==[]: # if didn't find the name who meets the query condition
                         if resultSetPeople==[]: 
                             # if didn't find the name in the database
@@ -840,27 +852,31 @@ class application:
                     print('Query result')
                     for result in resultSet:
                         print('-'*60)
-                        print('name: %s'%result[0])
-                        print('licence number: %s'%result[1])
-                        print('address: %s'%result[2])
-                        print('birthday: %s'%result[3])
-                        print('driving class: %s'%result[4])
-                        print('driving condition: %s'%result[5])
-                        print('expiring date: %s'%result[6])
+                        print('name: %s'%result[1])
+                        print('licence number: %s'%result[2])
+                        print('address: %s'%result[3])
+                        print('birthday: %s'%result[4])
+                        print('driving class: %s'%result[5])
+                        print('driving condition: %s'%result[6])
+                        print('expiring date: %s'%result[7])
 
                     # if there are people with the same name,
                     # but don't hold a licence
                     # Our program will only list the available info
-                    if len(resultSet)!=len(resultSetPeople):
-                        print('There are %d people with the same name but don\'t hold a licence'%(len(resultSetPeople)-len(resultSet)))
-                        for result in resultSetPeople:
+                    if len(resultSetPeopleWithLicence)!=len(resultSetPeople):
+                        print('-'*60)
+                        print('There are %d more people with the same name but don\'t hold a licence'%(len(resultSetPeople)-len(resultSetPeopleWithLicence)))
+                        
+                        # get the set of all people who have the same name but don't hold the licence yet  
+                        diffSet = [e for e in resultSetPeople if e not in resultSetPeopleWithLicence]
+                        for result in diffSet:
                             print('-'*60)
-                            print('name: %s'%result[0])
-                            print('address: %s'%result[1])
-                            print('birthday: %s'%result[2])
+                            print('name: %s'%result[1])
+                            print('address: %s'%result[2])
+                            print('birthday: %s'%result[3])
                     break
 
-                elif inputChoice='l' or inputChoice='L':
+                elif inputChoice=='l' or inputChoice=='L':
                     key = input('Please enter the licence number:')
                     queryLicence ="select name, l.licence_no,addr,birthday,class,description,expiring_date from people p, drive_licence l, restriction r, driving_condition d where p.sin=l.sin AND l.licence_no=r.licence_no AND r.r_id=d.c_id AND lower(l.licence_no)='"+key.lower()+"'"
                     resultSet=self.connection.fetchResult(queryLicence)
@@ -1000,9 +1016,6 @@ if __name__ == '__main__':
     app = application()
     app.main()
 
-
-### TODO:
-### 1. check for case insensitive comparisons
 
 ### DEMO NOTE:
 ### 1. We automatically generate the licence issuing date and ticket date from the system
