@@ -323,8 +323,9 @@ class application:
             if check=='1':
                 inputVal = input('Please enter SIN of the owner: ')
                 sin = self.checkFormat(inputVal, 'char', 15)
-            else:
-                self.newPeopleRegistration(sin) 
+            elif check=='2':
+                self.newPeopleRegistration(sin)
+        firstOwnerSin = sin #store the infomation about the first owner
 
         inputVal = input('Please enter the maker of the vehicle: ')
         maker = self.checkFormat(inputVal, 'char', 20)
@@ -358,7 +359,12 @@ class application:
             # if the sin is not in the database,
             # let the user choose between re-input and register new people
             sin = self.checkFormat(inputVal, 'char', 15)# should accept letters
-            while not self.ifSinExist(sin):
+            while (not self.ifSinExist(sin)) or sin==firstOwnerSin:
+                if sin==firstOwnerSin:
+                    print('This people is the first owner of the vehicle')
+                    sin = self.checkFormat(input('Please re-input: '), 'char', 15)
+                    continue
+                    
                 print('Sin NOT VALID.')
                 check = 0
                 while check!='1' and check!='2':
@@ -366,7 +372,7 @@ class application:
                     if check=='1':
                         inputVal = input('Please enter SIN of the owner: ')
                         sin = self.checkFormat(inputVal, 'char', 15)
-                    else:
+                    elif check=='2':
                         self.newPeopleRegistration(sin) 
 
             insertion = self.connection.createInsertion('owner', sin, serialNo, "'n'")
