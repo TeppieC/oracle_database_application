@@ -656,7 +656,8 @@ class application:
             elif choice=='n' or choice=='N':
                 return 'Q' # quit
             else:
-                print('Please choose between [y] and [n]')
+                print('Please choose between [y] and [n]: ')
+
 
     def hasLicence(self,sin):
         '''
@@ -679,7 +680,6 @@ class application:
         check if a driving condition id has already existed
         '''
         return self.connection.ifExist('driving_condition','c_id',cId)
-
 
     def newDriverRegistration(self):
         '''
@@ -719,12 +719,12 @@ class application:
                 elif choice=='n' or choice=='N':
                     return 'Q' # quit
                 else:
-                    print('Please choose between [y] and [n]')
+                    print('Please choose between [y] and [n]: ')
         
-        licence_no = input('Please enter the licence number: ')
+        licence_no = self.checkFormat(input('Please enter the licence number: '),'char',15)
         while self.ifLicenceNoExist(licence_no):
             print('Licence number already exist')
-            licenceNo = input('Please re-input: ')
+            licence_no = self.checkFormat(input('Please re-input: '),'char',15)
 
         inputVal = input('Please enter class of the licence: ')
         licence_class = self.checkFormat(inputVal, 'char', 10)
@@ -747,14 +747,14 @@ class application:
             break
         
         insert = """insert into drive_licence (licence_no,sin,class,photo,issuing_date,expiring_date) values (:licence_no,:sin,:class,:photo,:issuing_date,:expiring_date)"""
-        cursor.execute(insert, {'licence_no':licence_no,'sin':sin[1:-1],'class':licence_class[1:-1],'photo':photo,'issuing_date':issuing_date,'expiring_date':expiring_date})
+        cursor.execute(insert, {'licence_no':licence_no[1:-1],'sin':sin[1:-1],'class':licence_class[1:-1],'photo':photo,'issuing_date':issuing_date,'expiring_date':expiring_date})
         self.connection.doCommit()
         image.close()
         cursor.close()
 
         inputChoice = input('Do you want to enter driving condition?[y]/[n]')
         while not (inputChoice=='n' or inputChoice=='N' or inputChoice=='Y' or inputChoice=='y'):
-            inputChoice = input('Please select from [y] and [n]')
+            inputChoice = input('Please select from [y] and [n]: ')
 
         if inputChoice=='y' or inputChoice=='Y':
             selectedCid=[] # a temp container which stores the driving condition ids previous selected
@@ -776,7 +776,7 @@ class application:
 
                 # if the c_id is in the database
                 if self.ifCidExist(c_id):
-                    insertion = self.connection.createInsertion('restriction',"'"+licence_no+"'", c_id)
+                    insertion = self.connection.createInsertion('restriction',licence_no, c_id)
                     self.connection.executeStmt(insertion)
                 # if the c_id is not in the database, register it in.
                 else:
@@ -790,14 +790,14 @@ class application:
                     self.connection.executeStmt(insertion)
 
                     # insert into restriction
-                    insertion = self.connection.createInsertion('restriction',"'"+licence_no+"'", c_id)
+                    insertion = self.connection.createInsertion('restriction',licence_no, c_id)
                     self.connection.executeStmt(insertion)
        
                 print('Successfully add a driving condition')
                 finished = input('Have you finished adding driving condition? [y]/[n]')
                 while not (finished=='n' or finished=='N' or finished=='Y' or finished=='y'):
                     # ask for if the user need to input another driving condition for the licence
-                    finished = input('Please select from [y]/[n]')
+                    finished = input('Please select from [y]/[n]: ')
 
         print('Succeed')
 
@@ -808,7 +808,7 @@ class application:
             elif choice=='n' or choice=='N':
                 return 'Q' # quit
             else:
-                print('Please choose between [y] and [n]')
+                print('Please choose between [y] and [n]: ')
 
 
     def searchEngine(self):
