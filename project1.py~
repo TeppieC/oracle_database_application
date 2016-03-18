@@ -215,6 +215,14 @@ class application:
                     print('Input is not a numeric type')
                     value = input('Please re-input: ').strip()
                     continue
+                
+                isNegative =false
+                if value[0]=='-':
+                    while not value[1:].isdigit():
+                        print('Negative should start with one "-"')
+                        value=input('please re-enter:').strip()
+                    isNegative=True
+                    value =value[1:]
 
                 # special case for year input
                 # if the required decimal length is 0
@@ -225,22 +233,17 @@ class application:
                         value = input('Please re-input: ').strip()
                     return value
                     
-
                 if value.isdigit():
                     # explicitly cast it into a float string
                     value = value+'.%s'%('0'*misc[1])
-
-                if value[0]=='-':
-                    print('Input should be positive')
-                    value = input('Please re-input: ').strip()
-                    continue                    
 
                 # check if has the correct length
                 if len(value)>misc[0]+1:
                     print('Input is too long. Input should have %d digits(including decimal)' % misc[0])
                     value = input('Please re-input: ').strip()
                     continue
-
+                if isNegative:
+                    return "-"+value
                 # check if has the correct decimal length
                 if not value[-(misc[1]+1)]=='.':
                     print('Input should have max length of %d, and %d decimal digits' % (misc[0],misc[1]))
