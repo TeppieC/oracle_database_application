@@ -289,7 +289,7 @@ class application:
         #if inputType == 'char' or inputType == 'date':
         #    value = "'"+value+"'"
         while not self.connection.ifExist(table, keyAttr, value):
-            print('The key "%s" is not exist in the reference table "%s"'%(value, table))
+            print('%s is not existed in the database'%value)
             value = input('Please re-input: ').strip()
             value = self.checkFormat(value, inputType, misc)
         return value
@@ -488,10 +488,10 @@ class application:
         # eg. sin --> "'9000001'"
         # query --> "SELECT is_primary_owner FROM owner WHERE owner_id='9000001' AND vehicle_id='20034'"
         query = "SELECT is_primary_owner FROM owner WHERE owner_id="+sin+" AND vehicle_id="+serialNo
-        check = self.connection.fetchResult(query)[0]
-
-        if not check:# if no result matched
-            # then the car is not owned by the people
+        check = ''
+        try:
+            check = self.connection.fetchResult(query)[0]
+        except IndexError:
             return 2
         if check[0]=='y' or check[0]=='Y':
             return 0
@@ -736,14 +736,16 @@ class application:
         expiring_date = self.checkFormat(inputVal, 'date', 1)
 
         cursor = self.connection.createCursor()
+        photo = ''
         while True:
             fileName = input('Please enter the name of the photo file: ')
             try:
                 image  = open(fileName,'rb')
             except IOError:
                 print('No such file existed')
-            else:
-                photo  = image.read()
+                fileName = input('Please re-enter the name: ')
+                continue
+            photo  = image.read()
             break
         
         insert = """insert into drive_licence (licence_no,sin,class,photo,issuing_date,expiring_date) values (:licence_no,:sin,:class,:photo,:issuing_date,:expiring_date)"""
@@ -818,9 +820,6 @@ class application:
         for a specific infomation.
         '''
         
-        
-        #namePattern = re.compile('[A-Z][a-z]{0,40}',re.IGNORECASE)
-        #idPattern = re.compile('\w{15}', re.IGNORECASE)
         select = 0
         print('#'*80)
         print('Welcome to violation record system.\nPlease select what you want to search for:')
