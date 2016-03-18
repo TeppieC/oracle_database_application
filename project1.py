@@ -752,30 +752,50 @@ class application:
         image.close()
         cursor.close()
 
-        inputChoice = input('Do you want to input a new driving condition?[y]/[n]')
+        inputChoice = input('Do you want to enter driving condition?[y]/[n]')
         while not (inputChoice=='n' or inputChoice=='N' or inputChoice=='Y' or inputChoice=='y'):
-            inputChoice = input('Please select from [y] and []')
+            inputChoice = input('Please select from [y] and [n]')
 
         if inputChoice=='y' or inputChoice=='Y':
+            selectedCid=[]
+            finished='n' #check for if the user has finished adding driving conditions
+            
+            while finished=='n' or finished=='N':
             #create a new entry in restriction for this new licence
-            inputVal = input('Please enter the id of the driving condition: ')
-            c_id = self.checkFormat(inputVal,'integer',1)
+                c_id=''
+                inputVal = input('Please enter the id of the driving condition: ')
+                c_id = self.checkFormat(inputVal,'integer',1)
+                
+                # if has already select this cid for the licence before
+                while c_id in selectedCid: 
+                    print('You have already selected this id before')
+                    inputVal = input('Please re-enter the id: ')
+                    c_id = self.checkFormat(inputVal,'integer',1)
+                selectedCid.append(c_id)
 
-            if self.ifCidExist(c_id):
-                insertion = self.connection.createInsertion('restriction',licence_no, c_id)
-                self.connection.executeStmt(insertion)
-            else:
-                print('driving condition id not found.')
-                print('Creating a new driving condition...')
-                inputVal = input('Please enter the driving condition description: ')
-                driveCondition = self.checkFormat(inputVal, 'char', 1024)
+                # if the c_id is in the database
+                if self.ifCidExist(c_id):
+                    insertion = self.connection.createInsertion('restriction',licence_no, c_id)
+                    self.connection.executeStmt(insertion)
+                # if the c_id is not in the database, register it in.
+                else:
+                    print('driving condition id not found.')
+                    print('Creating a new driving condition...')
+                    inputVal = input('Please enter the driving condition description: ')
+                    driveCondition = self.checkFormat(inputVal, 'char', 1024)
 
-                insertion = self.connection.createInsertion('driving_condition',c_id, driveCondition)
-                self.connection.executeStmt(insertion)
+                    insertion = self.connection.createInsertion('driving_condition',c_id, driveCondition)
+                    self.connection.executeStmt(insertion)
 
-                insertion = self.connection.createInsertion('restriction',licence_no, c_id)
-                self.connection.executeStmt(insertion)
+                    insertion = self.connection.createInsertion('restriction',licence_no, c_id)
+                    self.connection.executeStmt(insertion)
        
+                print('Successfully add a driving condition')
+                finished = input('Do you want to enter another driving condition? [y]/[n]')
+                while not (finished=='n' or finished=='N' or finished=='Y' or finished=='y'):
+                    # ask for if the user need to input another driving condition for the licence
+                    finished = input('Please select from [y]/[n]')
+
         print('Succeed')
 
         while True:
