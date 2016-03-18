@@ -415,7 +415,7 @@ class application:
             gender = input('Please re-input[m/f]: ')
             
         # acquire for birthday
-        inputVal = input('Please enter the birthday[DD-MM-YYYY]:')
+        inputVal = input('Please enter the date of birth[DD-MM-YYYY]:')
         birthday = self.checkFormat(inputVal, 'date', 0) 
 
         insertion = self.connection.createInsertion('people',\
@@ -548,7 +548,7 @@ class application:
             while check!='1' and check!='2':
                 check = input('Re-input buyer\'s sin [1] OR register this person to database [2]? ').strip()
             if check=='1':
-                inputVal = input('Please enter SIN of the owner: ')
+                inputVal = input('Please enter SIN of the buyer: ')
                 bId = self.checkFormat(inputVal, 'char', 15)
             else:
                 self.newPeopleRegistration(bId) 
@@ -711,7 +711,7 @@ class application:
                 print('Please choose between:')
 
         if self.hasLicence(sin):
-            print('This people already has a drive licence')
+            print('This person already has a driver\'s licence')
             while True:
                 choice = input('Re-select the program?[y/n]')
                 if choice=='y' or choice=='Y':
