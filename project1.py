@@ -757,7 +757,7 @@ class application:
             inputChoice = input('Please select from [y] and [n]')
 
         if inputChoice=='y' or inputChoice=='Y':
-            selectedCid=[]
+            selectedCid=[] # a temp container which stores the driving condition ids previous selected
             finished='n' #check for if the user has finished adding driving conditions
             
             while finished=='n' or finished=='N':
@@ -772,10 +772,11 @@ class application:
                     inputVal = input('Please re-enter the id: ')
                     c_id = self.checkFormat(inputVal,'integer',1)
                 selectedCid.append(c_id)
+                print(selectedCid)
 
                 # if the c_id is in the database
                 if self.ifCidExist(c_id):
-                    insertion = self.connection.createInsertion('restriction',licence_no, c_id)
+                    insertion = self.connection.createInsertion('restriction',"'"+licence_no+"'", c_id)
                     self.connection.executeStmt(insertion)
                 # if the c_id is not in the database, register it in.
                 else:
@@ -784,14 +785,16 @@ class application:
                     inputVal = input('Please enter the driving condition description: ')
                     driveCondition = self.checkFormat(inputVal, 'char', 1024)
 
+                    # insert into driving_condition
                     insertion = self.connection.createInsertion('driving_condition',c_id, driveCondition)
                     self.connection.executeStmt(insertion)
 
-                    insertion = self.connection.createInsertion('restriction',licence_no, c_id)
+                    # insert into restriction
+                    insertion = self.connection.createInsertion('restriction',"'"+licence_no+"'", c_id)
                     self.connection.executeStmt(insertion)
        
                 print('Successfully add a driving condition')
-                finished = input('Do you want to enter another driving condition? [y]/[n]')
+                finished = input('Have you finished adding driving condition? [y]/[n]')
                 while not (finished=='n' or finished=='N' or finished=='Y' or finished=='y'):
                     # ask for if the user need to input another driving condition for the licence
                     finished = input('Please select from [y]/[n]')
@@ -847,7 +850,7 @@ class application:
             while True:
                 if inputChoice=='n' or inputChoice=='N':
                     key = input('Please enter the name:')
-                    # query for the person with the given name who hold a licence, also with a driving condition
+                    # query for the person with the given name who hold a licence, also with at least one driving condition
                     queryName="select p.sin,name, l.licence_no,addr,birthday,class,description,expiring_date from people p, drive_licence l LEFT JOIN restriction r ON l.licence_no=r.licence_no LEFT JOIN driving_condition d ON r.r_id=d.c_id where p.sin=l.sin AND lower(p.name) like '%"+key.lower()+"%'"
                     resultSet=self.connection.fetchResult(queryName)
                     
@@ -871,13 +874,20 @@ class application:
                     
                     print('Query result')
                     for result in resultSet:
+                        print(result)
                         print('-'*60)
                         print('name: %s'%result[1])
                         print('licence number: %s'%result[2])
                         print('address: %s'%result[3])
                         print('birthday: %s'%result[4])
                         print('driving class: %s'%result[5])
-                        print('driving condition: %s'%result[6])
+
+                        # In order to list all driving conditions
+                        query = "SELECT description FROM driving_condition d, drive_licence l, restriction r WHERE d.c_id=r.r_id AND l.licence_no=r.licence_no AND l.licence_no='"+result[2]+"'"
+                        # fetch all driving conditions this people has
+                        resultS = self.connection.fetchResult(query)
+                        #using list comprehesion to print out
+                        print('driving condition: %s'%str([dc[0] for dc in resultS]))
                         print('expiring date: %s'%result[7])
 
                     # if there are people with the same name,
@@ -912,7 +922,13 @@ class application:
                         print('address: %s'%result[2])
                         print('birthday: %s'%result[3])
                         print('driving class: %s'%result[4])
-                        print('driving condition: %s'%result[5])
+
+                        # In order to list all driving conditions
+                        query = "SELECT description FROM driving_condition d, drive_licence l, restriction r WHERE d.c_id=r.r_id AND l.licence_no=r.licence_no AND l.licence_no='"+result[2]+"'"
+                        # fetch all driving conditions this people has
+                        resultS = self.connection.fetchResult(query)
+                        #using list comprehesion to print out
+                        print('driving condition: %s'%str([dc[0] for dc in resultS]))
                         print('expiring date: %s'%result[6])
                     break
                 
